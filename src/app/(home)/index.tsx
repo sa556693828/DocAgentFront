@@ -4,6 +4,7 @@ import { useDropzone } from "react-dropzone";
 
 interface FileWithPreview extends File {
   preview: string;
+  base64?: string; // 新增 base64 屬性
 }
 
 const InputPage: React.FC = () => {
@@ -29,6 +30,55 @@ const InputPage: React.FC = () => {
         [".docx"],
     },
   });
+
+  // Function to convert file to Base64
+  const convertFileToBase64 = (file: FileWithPreview) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // Function to handle file upload
+  const handleUpload = async () => {
+    // Convert all files to base64
+    const filesWithBase64 = await Promise.all(
+      files.map(async (file) => {
+        const base64 = await convertFileToBase64(file);
+        return { ...file, base64 }; // Add base64 data to file object
+      })
+    );
+
+    // Call API to upload files
+    try {
+      const response = await fetch("/api/file", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          files: filesWithBase64.map((file) => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            base64: file.base64,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const result = await response.json();
+      alert("Upload successful!");
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      alert("Failed to upload files");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -83,7 +133,7 @@ const InputPage: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-              onClick={() => console.log("確認上傳", files)}
+              onClick={handleUpload} // Call the new handleUpload function
             >
               確認上傳
             </button>
