@@ -1,6 +1,8 @@
 "use client";
+import { cn } from "@/lib/utils";
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import toast from "react-hot-toast";
 
 interface FileWithPreview extends File {
   preview: string;
@@ -9,6 +11,7 @@ interface FileWithPreview extends File {
 
 const InputPage: React.FC = () => {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(
@@ -23,7 +26,7 @@ const InputPage: React.FC = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: true,
-    maxFiles: 10,
+    maxFiles: 5,
     accept: {
       "application/msword": [".doc", ".pdf", ".docx"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -43,15 +46,13 @@ const InputPage: React.FC = () => {
 
   // Function to handle file upload
   const handleUpload = async () => {
-    // Convert all files to base64
     const filesWithBase64 = await Promise.all(
       files.map(async (file) => {
         const base64 = await convertFileToBase64(file);
-        return { ...file, base64 }; // Add base64 data to file object
+        return { name: file.name, base64 }; // Add base64 data to file object
       })
     );
-
-    // Call API to upload files
+    setLoading(true);
     try {
       const response = await fetch("/api/file", {
         method: "POST",
@@ -61,22 +62,23 @@ const InputPage: React.FC = () => {
         body: JSON.stringify({
           files: filesWithBase64.map((file) => ({
             name: file.name,
-            type: file.type,
-            size: file.size,
             base64: file.base64,
           })),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Upload failed");
+        throw new Error("上傳失敗");
       }
 
       const result = await response.json();
-      alert("Upload successful!");
+      console.log("result", result.ids);
+      toast.success("上傳成功");
     } catch (error) {
       console.error("Error uploading files:", error);
-      alert("Failed to upload files");
+      toast.error("上傳失敗");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -132,10 +134,13 @@ const InputPage: React.FC = () => {
         {files.length > 0 && (
           <div className="mt-6 text-center">
             <button
-              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-              onClick={handleUpload} // Call the new handleUpload function
+              className={cn(
+                "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",
+                loading && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={handleUpload}
             >
-              確認上傳
+              {loading ? "上傳中..." : "確認上傳"}
             </button>
           </div>
         )}
