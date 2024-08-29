@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       insertOne: {
         document: {
           name: file.name,
-          base64: file.base64,
+          url: file.url,
         },
       },
     }));

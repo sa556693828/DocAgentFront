@@ -40,26 +40,41 @@ const OutputPage: React.FC = () => {
       className: "text-base",
     };
 
-    // if (key === "商品簡介" || key === "作者簡介") {
-    //   return {
-    //     ...baseColumn,
-    //     ellipsis: {
-    //       showTitle: false,
-    //     },
-    //     render: (text) => (
-    //       <div className="cursor-pointer" onClick={(e) => e.stopPropagation()}>
-    //         <Tooltip
-    //           title={text}
-    //           placement="topLeft"
-    //           overlayStyle={{ maxWidth: "50%" }}
-    //         >
-    //           <span>{text || "-"}</span>
-    //         </Tooltip>
-    //       </div>
-    //     ),
-    //   };
-    // }
-
+    if (
+      key === "商品簡介" ||
+      key === "作者簡介" ||
+      key === "目錄／曲目" ||
+      key === "內文試閱" ||
+      key === "前言／序" ||
+      key === "譯者簡介" ||
+      key === "媒体推薦" ||
+      key === "名人推薦" ||
+      key === "得獎紀錄"
+    ) {
+      return {
+        ...baseColumn,
+        ellipsis: {
+          showTitle: false,
+        },
+        render: (text) => (
+          <Tooltip
+            title={text}
+            placement="topLeft"
+            overlayStyle={{ maxWidth: "50%" }}
+          >
+            <div
+              style={{
+                ...wrapperStyle,
+                maxHeight: "100px",
+                overflow: "hidden",
+              }}
+            >
+              {text || "-"}
+            </div>
+          </Tooltip>
+        ),
+      };
+    }
     return {
       ...baseColumn,
       render: (text) => <div style={wrapperStyle}>{text || "-"}</div>,
@@ -115,7 +130,6 @@ const OutputPage: React.FC = () => {
             輸出標準格式
           </button>
         </div>
-
         <h2 className="text-2xl font-bold mb-4">已上傳表格</h2>
         <style jsx global>{`
           .ant-table-container table > thead > tr:first-child th {
@@ -126,6 +140,8 @@ const OutputPage: React.FC = () => {
           }
           .ant-table-container table > tbody > tr > td {
             border-right: 1px solid #f0f0f0;
+            max-height: 100px;
+            overflow: hidden;
           }
           .ant-table-container table > tbody > tr > td:last-child {
             border-right: none;
@@ -133,7 +149,6 @@ const OutputPage: React.FC = () => {
         `}</style>
         <Table
           pagination={{ pageSize: 10 }}
-          // scroll={{ x: 1500 }}
           columns={[...columns]}
           dataSource={data}
           rowKey={(row) => row._id}
