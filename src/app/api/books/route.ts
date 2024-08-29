@@ -9,7 +9,7 @@ export async function GET() {
       .collection("standard_form")
       .find({})
       .sort({ metacritic: -1 })
-      .limit(10)
+      // .limit(10)
       .toArray();
 
     return NextResponse.json(books);
