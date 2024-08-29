@@ -8,6 +8,7 @@ import { Table, Tooltip } from "antd";
 const OutputPage: React.FC = () => {
   // const;
   const [data, setData] = useState<BookType[]>([]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -82,29 +83,34 @@ const OutputPage: React.FC = () => {
   });
   const exportToCSV = () => {
     try {
-      // Prepare headers (column titles)
       const headers = columns.map((column) => column.title);
 
-      // Prepare rows (each row is a complete data record)
       const rows = data.map((item: any) =>
-        columns.map((column: any) => item[column.dataIndex] || "")
+        columns.map((column: any) => {
+          const cellValue = item[column.dataIndex] || "";
+          // 處理包含逗號、引號或換行符的單元格
+          if (/[",\n\r]/.test(cellValue)) {
+            return `"${cellValue.replace(/"/g, '""')}"`;
+          }
+          return cellValue;
+        })
       );
 
-      // Generate CSV content
-      const csvContent = [headers, ...rows].join("\n");
+      // 生成CSV內容
+      const csvContent = [headers.join(",")]
+        .concat(rows.map((row) => row.join(",")))
+        .join("\n");
 
       // Create Blob and download link
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", "標準格式檔案.csv");
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "標準格式檔案.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       // toast.success("CSV file exported successfully");
     } catch (error) {
       console.error("Error exporting CSV:", error);

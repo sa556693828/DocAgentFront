@@ -1,6 +1,8 @@
 import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
+export const dynamic = "no-store"; // 禁用缓存
+
 export async function GET() {
   try {
     const client = await clientPromise;
