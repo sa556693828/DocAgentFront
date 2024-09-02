@@ -168,12 +168,7 @@ const InputPage: React.FC = () => {
           "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",
           loading && "opacity-50 cursor-not-allowed"
         )}
-        onClick={() =>
-          callDocAgentAPI(
-            "66d01b7e7a63e7b5adc55da9",
-            "66d01b7e7a63e7b5adc55da9"
-          )
-        }
+        onClick={() => callDocAgentAPI("66d03c3db3bdb368e9bbf2f9", "test")}
       >
         {loading || agentLoading ? "上傳中..." : "確認上傳"}
       </button>

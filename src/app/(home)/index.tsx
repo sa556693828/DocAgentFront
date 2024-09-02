@@ -130,7 +130,7 @@ const InputPage: React.FC = () => {
       // });
       const result = await axios.post(
         process.env.NODE_ENV === "production"
-          ? "https://00dba6aae510.ngrok.app/docAgent/stream"
+          ? process.env.NGROK_URL + "/docAgent/stream"
           : "http://localhost:9000/docAgent/stream",
         {
           input: {
