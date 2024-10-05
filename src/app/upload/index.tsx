@@ -1,19 +1,17 @@
 "use client";
-import { cn } from "@/lib/utils";
-import axios from "axios";
-import React, { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
-import toast from "react-hot-toast";
-import { RemoteRunnable } from "@langchain/core/runnables/remote";
 
+import { useCallback, useState } from "react";
+import axios from "axios";
+import { useDropzone } from "react-dropzone";
+import { cn } from "@/lib/utils";
 interface FileWithPreview extends File {
   preview: string;
   base64?: string; // 新增 base64 屬性
 }
-
-const InputPage: React.FC = () => {
+export default function Upload() {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
   const [agentLoading, setAgentLoading] = useState(false);
   const [ids, setIds] = useState<string[]>([]);
 
@@ -39,98 +37,30 @@ const InputPage: React.FC = () => {
     },
   });
 
-  const saveToMongoDB = async (fileInfos: { name: string; url: string }[]) => {
-    try {
-      const response = await fetch("/api/file", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          files: fileInfos.map((file) => ({
-            name: file.name,
-            url: file.url,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("保存到MongoDB失敗");
-      }
-
-      const result = await response.json();
-      return result.ids;
-    } catch (error) {
-      console.error("保存到MongoDB時出錯:", error);
-    }
-  };
   const handleUpload = async () => {
-    setLoading(true);
-    try {
-      const uploadPromises = files.map(async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`上傳文件 ${file.name} 失敗`);
-        }
-
-        const result = await response.json();
-        return { name: file.name, url: result.fileUrl };
-      });
-
-      const fileUrls = await Promise.all(uploadPromises);
-      const ids = await saveToMongoDB(fileUrls);
-      setIds(ids);
-      toast.success("所有文件上傳成功");
-      if (ids.length > 0) {
-        const promises = ids.map((id: string, index: number) =>
-          callDocAgentAPI(id, fileUrls[index].name)
-        );
-        await Promise.all(promises);
-      }
-    } catch (error) {
-      console.error("上傳文件時出錯:", error);
-      toast.error("上傳失敗");
-    } finally {
-      setLoading(false);
+    if (!files) {
+      setMessage("請選擇一個文件");
+      return;
     }
-  };
 
-  const callDocAgentAPI = async (fileId: string, fileName: string) => {
-    setAgentLoading(true);
-    const toastId = toast.loading(`正在轉換 ${fileName}`);
+    const formData = new FormData();
+    files.forEach((file) => formData.append("file", file));
     try {
-      const result = await axios.post(
-        process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transform"
-          : "http://localhost:9000/transform",
-        {
-          file_id: fileId,
-        },
+      const response = await axios.post(
+        "http://localhost:9000/upload",
+        formData,
         {
           headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer valid_api_key",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
-      console.log(result);
-      toast.success(`轉換 ${fileName} 成功`);
-      toast.dismiss(toastId);
-      return result;
+      setMessage(response.data.message);
+      setFiles([]);
     } catch (error: any) {
-      console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`);
-      toast.dismiss(toastId);
-      throw error;
+      setMessage(error.response?.data?.error || "上傳失敗");
     } finally {
-      setAgentLoading(false);
+      setLoading(false);
     }
   };
 
@@ -199,6 +129,4 @@ const InputPage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default InputPage;
+}

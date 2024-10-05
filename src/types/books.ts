@@ -1,10 +1,9 @@
 export interface BookType {
-  _id: string;
   供應商代碼: string;
   出版社代碼: string;
   原文出版社: string;
-  商品條碼EAN: string;
-  ISBN_ISSN: string;
+  "商品條碼(EAN)": string;
+  "ISBN/ISSN": string;
   EISBN: string;
   商品貨號: string;
   業種別: string;
@@ -29,12 +28,12 @@ export interface BookType {
   出版型式: string;
   裝訂型式: string;
   裝訂型式補述: string;
-  叢書名稱書系: string;
+  "叢書名稱(書系)": string;
   CIP: string;
   學思行分類: string;
   商品內容分級: string;
-  適合年齡起: string;
-  適合年齡迄: string;
+  "適合年齡(起)": string;
+  "適合年齡(迄)": string;
   商品單位代碼: string;
   商品定價: string;
   商品特價: string;
@@ -48,19 +47,19 @@ export interface BookType {
   商品寛度: string;
   商品高度: string;
   商品重量: string;
-  特別收錄編輯的話: string;
+  "特別收錄／編輯的話": string;
   商品簡介: string;
   封面故事: string;
   作者簡介: string;
   譯者簡介: string;
   內容頁次: string;
-  前言序: string;
+  "前言／序": string;
   內文試閱: string;
   名人導讀: string;
   媒体推薦: string;
   名人推薦: string;
   得獎紀錄: string;
-  目錄曲目: string;
+  "目錄／曲目": string;
   附加商品標題: string;
   附加商品內容: string;
   絕版註記: string;
@@ -70,9 +69,22 @@ export interface BookType {
   系列代碼: string;
   廠商店內碼: string;
   紙張開數: string;
-  關鍵字詞: string;
+  "關鍵字詞。各關鍵字之間，請以「,」為區隔符號。": string;
   商品截退日期: string;
   銷售通路限制: string;
   首批進倉日期: string;
-  商品隨貨附件: string;
+  "(商品)隨貨附件": string;
+}
+export interface BookData {
+  _id: string;
+  supplier_name: string;
+  content: BookType;
+}
+export interface BookArticleData {
+  _id: string;
+  book_id: string;
+  type: "normal" | "RAG";
+  "Content-oriented": string;
+  Promotional: string;
+  "Threat-based": string;
 }

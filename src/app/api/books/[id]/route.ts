@@ -4,16 +4,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic"; // 禁用缓存
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const client = await clientPromise;
     const db = client.db("DocAgent");
-    const books = await db
-      .collection("standard_form")
-      .find({})
-      .sort({ metacritic: -1 })
-      // .limit(10)
-      .toArray();
+    const { id } = params;
+    const books = await db.collection("standard_form").find({
+      _id: new ObjectId(id),
+    });
 
     const response = NextResponse.json(books);
 
@@ -41,6 +42,7 @@ export async function PUT(
   try {
     const { id } = params;
     const { supplier_name, content } = await request.json();
+
     const client = await clientPromise;
     const db = client.db("DocAgent");
     const collection = db.collection("standard_form");
