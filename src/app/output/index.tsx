@@ -96,6 +96,7 @@ const OutputPage: React.FC = () => {
       if (key === "supplier_name") {
         return {
           ...baseColumn,
+          fixed: "left" as any,
           render: (text: any, row: any) => {
             return <div style={wrapperStyle}>{row.supplier_name || "-"}</div>;
           },

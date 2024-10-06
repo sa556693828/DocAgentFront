@@ -25,6 +25,10 @@ const NormalModal: React.FC<NormalModalProps> = ({ selectedRow }) => {
       }
       const data = (await response.json()) as BookArticleData[];
       if (data.length === 0) {
+        setFirstArticle("");
+        setSecondArticle("");
+        setThirdArticle("");
+        setGenerated(false);
         return;
       }
       setFirstArticle(data[0]["Content-oriented"]);
@@ -32,6 +36,10 @@ const NormalModal: React.FC<NormalModalProps> = ({ selectedRow }) => {
       setThirdArticle(data[0]["Threat-based"]);
       setGenerated(true);
     } catch (error) {
+      setFirstArticle("");
+      setSecondArticle("");
+      setThirdArticle("");
+      setGenerated(false);
       console.error("Error fetching data:", error);
     }
   };
@@ -112,8 +120,9 @@ const NormalModal: React.FC<NormalModalProps> = ({ selectedRow }) => {
     }
   };
   useEffect(() => {
+    console.log(selectedRow);
     fetchBookArticle(selectedRow._id);
-  }, [selectedRow._id]);
+  }, [selectedRow, selectedRow._id]);
   return (
     <div className="w-full gap-4 flex flex-col">
       {selectedRow && (
