@@ -16,6 +16,8 @@ const InputPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
   const [ids, setIds] = useState<string[]>([]);
+  const [fileStatus, setFileStatus] = useState<{ [key: string]: string }>({});
+  const [allUploaded, setAllUploaded] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(
@@ -68,6 +70,8 @@ const InputPage: React.FC = () => {
     setLoading(true);
     try {
       const uploadPromises = files.map(async (file) => {
+        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳中" }));
+
         const formData = new FormData();
         formData.append("file", file);
 
@@ -81,6 +85,7 @@ const InputPage: React.FC = () => {
         }
 
         const result = await response.json();
+        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳完成" }));
         return { name: file.name, url: result.fileUrl };
       });
 
@@ -103,6 +108,7 @@ const InputPage: React.FC = () => {
   };
 
   const callDocAgentAPI = async (fileId: string, fileName: string) => {
+    setFileStatus((prev) => ({ ...prev, [fileName]: "轉換中" }));
     setAgentLoading(true);
     const toastId = toast.loading(`正在轉換 ${fileName}`);
     try {
@@ -123,8 +129,10 @@ const InputPage: React.FC = () => {
       console.log(result);
       toast.success(`轉換 ${fileName} 成功`);
       toast.dismiss(toastId);
+      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
       return result;
     } catch (error: any) {
+      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
       console.error("調用DocAgent API時出錯:", error.response.data.error);
       toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`);
       toast.dismiss(toastId);
@@ -132,6 +140,12 @@ const InputPage: React.FC = () => {
     } finally {
       setAgentLoading(false);
     }
+  };
+  const handleReupload = () => {
+    setFiles([]);
+    setIds([]);
+    setFileStatus({});
+    setAllUploaded(false);
   };
 
   return (
@@ -178,13 +192,26 @@ const InputPage: React.FC = () => {
                   <span className="text-gray-700">
                     {file.name.split(".")[0]}
                   </span>
+                  <span className="text-sm text-gray-500">
+                    {fileStatus[file.name] || "等待上傳"}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         )}
         {files.length > 0 && (
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center flex justify-center gap-4">
+              <button
+                className={cn(
+                  "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded",
+                  loading || agentLoading ? "opacity-50 cursor-not-allowed" : ""
+                )}
+                onClick={handleReupload}
+                disabled={loading || agentLoading}
+              >
+                重新上傳
+              </button>
             <button
               className={cn(
                 "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",

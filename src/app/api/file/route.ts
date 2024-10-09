@@ -16,25 +16,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const insertOperations = files.map((file: any) => ({
-      insertOne: {
-        document: {
+    const fileIds = [];
+    for (const file of files) {
+      const existingFile = await db.collection("input_files").findOne({ name: file.name });
+      if (existingFile) {
+        fileIds.push(existingFile._id);
+      } else {
+        const result = await db.collection("input_files").insertOne({
           name: file.name,
           url: file.url,
-        },
-      },
-    }));
-
-    const result = await db
-      .collection("input_files")
-      .bulkWrite(insertOperations);
-
-    const insertedIds = Object.values(result.insertedIds);
-
+        });
+        fileIds.push(result.insertedId);
+      }
+    }
+    
     return NextResponse.json(
-      { message: "Files uploaded successfully", ids: insertedIds },
+      { message: "文件處理成功", ids: fileIds },
       { status: 200 }
     );
+    
   } catch (e) {
     console.error(e);
     return NextResponse.json(
