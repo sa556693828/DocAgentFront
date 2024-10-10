@@ -68,6 +68,7 @@ const InputPage: React.FC = () => {
   };
   const handleUpload = async () => {
     setLoading(true);
+    const toastId = toast.loading(`正在上傳`);
     try {
       const uploadPromises = files.map(async (file) => {
         setFileStatus((prev) => ({ ...prev, [file.name]: "上傳中" }));
@@ -92,18 +93,36 @@ const InputPage: React.FC = () => {
       const fileUrls = await Promise.all(uploadPromises);
       const ids = await saveToMongoDB(fileUrls);
       setIds(ids);
-      toast.success("所有文件上傳成功");
+      toast.success("所有文件上傳成功", {
+        id: toastId,
+      });
       if (ids.length > 0) {
         const promises = ids.map((id: string, index: number) =>
           callDocAgentAPI(id, fileUrls[index].name)
         );
-        await Promise.all(promises);
+        // 使用 Promise.allSettled 來同時執行所有 API 調用
+        const results = await Promise.allSettled(promises);
+
+        // 處理結果
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") {
+            console.log(`文件 ${fileUrls[index].name} 轉換成功`);
+          } else {
+            console.error(
+              `文件 ${fileUrls[index].name} 轉換失敗:`,
+              result.reason
+            );
+          }
+        });
       }
     } catch (error) {
       console.error("上傳文件時出錯:", error);
-      toast.error("上傳失敗");
+      toast.error("上傳失敗", {
+        id: toastId,
+      });
     } finally {
       setLoading(false);
+      toast.dismiss(toastId);
     }
   };
 
@@ -127,18 +146,22 @@ const InputPage: React.FC = () => {
         }
       );
       console.log(result);
-      toast.success(`轉換 ${fileName} 成功`);
+      toast.success(`轉換 ${fileName} 成功`, {
+        id: toastId,
+      });
       toast.dismiss(toastId);
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
       return result;
     } catch (error: any) {
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
       console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`);
-      toast.dismiss(toastId);
+      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`, {
+        id: toastId,
+      });
       throw error;
     } finally {
       setAgentLoading(false);
+      toast.dismiss(toastId);
     }
   };
   const handleReupload = () => {
@@ -202,16 +225,16 @@ const InputPage: React.FC = () => {
         )}
         {files.length > 0 && (
           <div className="mt-6 text-center flex justify-center gap-4">
-              <button
-                className={cn(
-                  "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded",
-                  loading || agentLoading ? "opacity-50 cursor-not-allowed" : ""
-                )}
-                onClick={handleReupload}
-                disabled={loading || agentLoading}
-              >
-                重新上傳
-              </button>
+            <button
+              className={cn(
+                "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded",
+                loading || agentLoading ? "opacity-50 cursor-not-allowed" : ""
+              )}
+              onClick={handleReupload}
+              disabled={loading || agentLoading}
+            >
+              重新上傳
+            </button>
             <button
               className={cn(
                 "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",
