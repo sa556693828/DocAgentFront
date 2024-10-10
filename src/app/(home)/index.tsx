@@ -82,6 +82,10 @@ const InputPage: React.FC = () => {
         });
 
         if (!response.ok) {
+          setFileStatus((prev) => ({
+            ...prev,
+            [file.name]: "上傳失敗，請小於4MB",
+          }));
           throw new Error(`上傳文件 ${file.name} 失敗`);
         }
 
