@@ -126,7 +126,6 @@ const InputPage: React.FC = () => {
       });
     } finally {
       setLoading(false);
-      toast.dismiss(toastId);
     }
   };
 
@@ -165,7 +164,6 @@ const InputPage: React.FC = () => {
       throw error;
     } finally {
       setAgentLoading(false);
-      toast.dismiss(toastId);
     }
   };
   const handleReupload = () => {
