@@ -11,7 +11,7 @@ interface FileWithPreview extends File {
   base64?: string; // 新增 base64 屬性
 }
 
-const InputPage: React.FC = () => {
+const RulesPage: React.FC = () => {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
@@ -309,4 +309,4 @@ const InputPage: React.FC = () => {
   );
 };
 
-export default InputPage;
+export default RulesPage;

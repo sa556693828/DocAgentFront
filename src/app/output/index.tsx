@@ -24,6 +24,7 @@ const OutputPage: React.FC = () => {
         throw new Error("Failed to fetch data");
       }
       const data = (await response.json()) as BookData[];
+      data.reverse();
       setData(data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -156,23 +157,31 @@ const OutputPage: React.FC = () => {
 
   const exportToCSV = () => {
     try {
-      const headers = ["supplier_name", ...Object.keys(data[0]?.content || {})];
-
+      // const headers = ["supplier_name", ...Object.keys(data[0]?.content || {})];
+      const headers = [...Object.keys(data[0]?.content || {})];
       const rows = data.map((item) =>
-        ["supplier_name", ...headers.slice(1)].map((key) => {
-          const cellValue =
-            key === "supplier_name"
-              ? item.supplier_name
-              : item.content[key as keyof BookType] || "";
-          // 處理包含逗號、引號或換行符的單元格
+        headers.map((key) => {
+          let cellValue = item.content[key as keyof BookType] || "";
+
+          // 特殊處理"關鍵字詞"欄位
+          if (key === "關鍵字詞。各關鍵字之間，請以「,」為區隔符號。") {
+            console.log(cellValue);
+            // 將整個欄位內容用引號包裹，確保不會被分割
+            return `"${cellValue.replace(/"/g, '""')}"`;
+          }
+
+          // 處理其他包含逗號、引號或換行符的單元格
           if (/[",\n\r]/.test(cellValue)) {
             return `"${cellValue.replace(/"/g, '""')}"`;
           }
           return cellValue;
         })
       );
+
       // 生成CSV內容
-      const csvContent = [headers.join(",")]
+      const csvContent = [
+        headers.map((header) => `"${header.replace(/"/g, '""')}"`).join(","),
+      ]
         .concat(rows.map((row) => row.join(",")))
         .join("\n");
 
