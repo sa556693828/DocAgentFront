@@ -41,7 +41,7 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const { supplier_name, content } = await request.json();
+    const { publisher_name, content } = await request.json();
 
     const client = await clientPromise;
     const db = client.db("DocAgent");
@@ -50,7 +50,7 @@ export async function PUT(
       { _id: new ObjectId(id) },
       {
         $set: {
-          supplier_name,
+          publisher_name,
           content,
         },
       }

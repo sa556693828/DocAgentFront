@@ -9,7 +9,7 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db("DocAgent");
     const rules = await db
-      .collection("supplier_rule")
+      .collection("publisher_rule")
       .find({})
       .sort({ metacritic: -1 })
       // .limit(10)
@@ -40,15 +40,15 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const { supplier_name, rule, tips, score } = await request.json();
+    const { publisher_name, rule, tips, score } = await request.json();
     const client = await clientPromise;
     const db = client.db("DocAgent");
-    const collection = db.collection("supplier_rule");
+    const collection = db.collection("publisher_rule");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {
         $set: {
-          supplier_name,
+          publisher_name,
           rule,
           tips,
           score,

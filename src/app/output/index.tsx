@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import type { TableProps } from "antd";
-import { BookArticleData, BookData, BookType } from "@/types/books";
-import { keyConfig, StandardFormat } from "@/constant/standard";
+import { BookData, BookType } from "@/types/books";
+import { outputKeyConfig, StandardFormat } from "@/constant/standard";
 import { Table, Tooltip, Input, Button, Modal } from "antd";
 import { cn } from "@/lib/utils";
 import axios from "axios";
@@ -17,6 +17,9 @@ const OutputPage: React.FC = () => {
   const [mode, setMode] = useState<"normal" | "RAG">("normal");
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BookData | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isFiltered, setIsFiltered] = useState(false);
+
   const fetchData = async () => {
     try {
       const response = await fetch("/api/books");
@@ -33,12 +36,12 @@ const OutputPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
   const handleEdit = async (record: BookData) => {
     try {
       console.log(record);
       const response = await axios.put(`/api/books/${record._id}`, {
         // 這裡放入你要更新的數據
+        publisher_name: record.publisher_name,
         supplier_name: record.supplier_name,
         content: record.content,
       });
@@ -56,13 +59,31 @@ const OutputPage: React.FC = () => {
     setEditingRecord(record);
     setIsEditModalVisible(true);
   };
-
   const handleEditModalClose = () => {
     setIsEditModalVisible(false);
     setEditingRecord(null);
   };
+  const handleBatchDelete = async () => {
+    try {
+      const response = await axios.delete("/api/books", {
+        data: { ids: selectedRowKeys },
+      });
 
-  const keyArray = ["supplier_name", ...Object.keys(StandardFormat.content)];
+      if (response.status === 200) {
+        toast.success(`成功刪除了 ${response.data.deletedCount} 本書籍`); // 重新获取数据
+        setSelectedRowKeys([]); // 清空选择
+        fetchData();
+      }
+    } catch (error) {
+      console.error("批量刪除書籍時出錯:", error);
+      toast.error("批量刪除書籍失敗");
+    }
+  };
+  const keyArray = [
+    "publisher_name",
+    "supplier_name",
+    ...Object.keys(StandardFormat.content),
+  ];
   const wrapperStyle: React.CSSProperties = {
     whiteSpace: "normal",
     wordWrap: "break-word",
@@ -75,31 +96,42 @@ const OutputPage: React.FC = () => {
       fixed: "left",
       width: 100,
       render: (_, record) => (
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleEditClick(record);
-          }}
-        >
-          編輯
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick(record);
+            }}
+          >
+            編輯
+          </Button>
+        </div>
       ),
     },
     ...keyArray.map((key) => {
       const baseColumn = {
-        title: keyConfig[key]?.name || key,
+        title: outputKeyConfig[key]?.name || key,
         dataIndex: ["content", key],
         key: key,
         ellipsis: true,
-        width: keyConfig[key]?.w || 150,
+        width: outputKeyConfig[key]?.w || 150,
         className: "text-base",
       };
+      if (key === "publisher_name") {
+        return {
+          ...baseColumn,
+          fixed: "left" as any,
+          render: (text: any, row: any) => {
+            return <div style={wrapperStyle}>{row[key] || "-"}</div>;
+          },
+        };
+      }
       if (key === "supplier_name") {
         return {
           ...baseColumn,
           fixed: "left" as any,
           render: (text: any, row: any) => {
-            return <div style={wrapperStyle}>{row.supplier_name || "-"}</div>;
+            return <div style={wrapperStyle}>{row[key] || "-"}</div>;
           },
         };
       }
@@ -150,16 +182,23 @@ const OutputPage: React.FC = () => {
     setSelectedRow(record);
     setIsModalVisible(true);
   };
-
   const handleModalClose = () => {
     setIsModalVisible(false);
   };
-
   const exportToCSV = () => {
     try {
-      // const headers = ["supplier_name", ...Object.keys(data[0]?.content || {})];
-      const headers = [...Object.keys(data[0]?.content || {})];
-      const rows = data.map((item) =>
+      // const headers = ["publisher_name", ...Object.keys(data[0]?.content || {})];
+      const selectedData = data.filter((item) =>
+        selectedRowKeys.includes(item._id)
+      );
+
+      if (selectedData.length === 0) {
+        toast.error("請至少選擇一行數據進行導出");
+        return;
+      }
+
+      const headers = [...Object.keys(selectedData[0]?.content || {})];
+      const rows = selectedData.map((item) =>
         headers.map((key) => {
           let cellValue = item.content[key as keyof BookType] || "";
 
@@ -204,19 +243,67 @@ const OutputPage: React.FC = () => {
       console.error("Error exporting CSV:", error);
     }
   };
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (newSelectedRowKeys: React.Key[]) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+    },
+  };
+  const filteredData = isFiltered
+    ? data.filter(
+        (item) => !item.content["供應商代碼"] || !item.content["出版社代碼"]
+      )
+    : data;
 
+  const handleFilterToggle = () => {
+    setIsFiltered(!isFiltered);
+  };
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="w-full mx-auto bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between mb-6">
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="w-full mx-auto bg-white rounded-lg shadow-md gap-6  flex flex-col p-6">
+        <div className="flex w-full justify-between items-center">
           <button
-            className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition-colors"
+            disabled={selectedRowKeys.length === 0}
+            className={cn(
+              "bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition-colors",
+              selectedRowKeys.length === 0
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            )}
             onClick={exportToCSV}
           >
-            輸出標準格式
+            導出選擇的標準格式
+          </button>
+          <button
+            className={cn(
+              "bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors",
+              isFiltered ? "bg-yellow-600" : ""
+            )}
+            onClick={handleFilterToggle}
+          >
+            {isFiltered
+              ? "顯示全部資料"
+              : "顯示沒有供應商代碼或出版社代碼的資料"}
+          </button>
+          {selectedRowKeys.length > 0 && (
+            <span className="font-bold text-xl">
+              已選擇 {selectedRowKeys.length} 項
+            </span>
+          )}
+          <button
+            className={cn(
+              "bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors",
+              selectedRowKeys.length === 0
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            )}
+            disabled={selectedRowKeys.length === 0}
+            onClick={handleBatchDelete}
+          >
+            刪除選擇項目
           </button>
         </div>
-        <h2 className="text-2xl font-bold mb-4">已上傳表格</h2>
+        {/* <h2 className="text-2xl font-bold ">已上傳表格</h2> */}
         <style jsx global>{`
           .ant-table-container table > thead > tr:first-child th {
             border-right: 1px solid #f0f0f0;
@@ -234,11 +321,13 @@ const OutputPage: React.FC = () => {
           }
         `}</style>
         <Table
+          rowSelection={rowSelection}
           pagination={{ pageSize: 10 }}
           columns={columns}
-          dataSource={data}
+          dataSource={filteredData}
           rowKey={(row) => row._id}
           scroll={{ x: "max-content" }}
+          sticky={true} // 添加 sticky 屬性
           onRow={(record) => ({
             onClick: () => onRowClick(record), // On row click, show modal
           })}
@@ -295,6 +384,19 @@ const OutputPage: React.FC = () => {
             >
               <div className="grid grid-cols-3 gap-4">
                 <div>
+                  <label className="block mb-1">出版社名稱</label>
+                  <Input
+                    value={editingRecord.publisher_name}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        publisher_name: e.target.value,
+                      })
+                    }
+                    placeholder="出版社名稱"
+                  />
+                </div>
+                <div>
                   <label className="block mb-1">供應商名稱</label>
                   <Input
                     value={editingRecord.supplier_name}
@@ -310,7 +412,7 @@ const OutputPage: React.FC = () => {
                 {Object.entries(editingRecord.content).map(([key, value]) => (
                   <div key={key}>
                     <label className="block mb-1">
-                      {keyConfig[key]?.name || key}
+                      {outputKeyConfig[key]?.name || key}
                     </label>
                     {key === "商品簡介" ||
                     key === "作者簡介" ||
@@ -334,7 +436,7 @@ const OutputPage: React.FC = () => {
                             },
                           })
                         }
-                        placeholder={keyConfig[key]?.name || key}
+                        placeholder={outputKeyConfig[key]?.name || key}
                         rows={4}
                       />
                     ) : (
@@ -349,7 +451,7 @@ const OutputPage: React.FC = () => {
                             },
                           })
                         }
-                        placeholder={keyConfig[key]?.name || key}
+                        placeholder={outputKeyConfig[key]?.name || key}
                       />
                     )}
                   </div>

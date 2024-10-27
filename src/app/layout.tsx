@@ -20,6 +20,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <title>DocAgent</title>
+        <meta name="description" content="DocAgent" />
         <Toaster />
         <Header />
         <main className=" flex min-h-screen bg-white text-black flex-col relative">

@@ -77,6 +77,7 @@ export interface BookType {
 }
 export interface BookData {
   _id: string;
+  publisher_name: string;
   supplier_name: string;
   content: BookType;
 }

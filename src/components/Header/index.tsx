@@ -26,14 +26,14 @@ export const Header: React.FC = () => {
                 Output Page
               </Link>
             </li>
-            {/* <li>
+            <li>
               <Link
-                href="/about"
+                href="/rules"
                 className="text-gray-600 hover:text-indigo-600 transition-colors"
               >
-                About
+                Rules Page
               </Link>
-            </li> */}
+            </li>
           </ul>
         </nav>
       </div>

@@ -40,7 +40,7 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const { supplier_name, content } = await request.json();
+    const { publisher_name, content } = await request.json();
     const client = await clientPromise;
     const db = client.db("DocAgent");
     const collection = db.collection("standard_form");
@@ -48,7 +48,7 @@ export async function PUT(
       { _id: new ObjectId(id) },
       {
         $set: {
-          supplier_name,
+          publisher_name,
           content,
         },
       }
@@ -62,5 +62,36 @@ export async function PUT(
   } catch (error) {
     console.error("更新書籍時出錯:", error);
     return NextResponse.json({ error: "更新書籍失敗" }, { status: 500 });
+  }
+}
+export async function DELETE(request: NextRequest) {
+  try {
+    const { ids } = await request.json();
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: "无效的ID列表" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("DocAgent");
+    const collection = db.collection("standard_form");
+
+    const objectIds = ids.map((id) => new ObjectId(id));
+    const result = await collection.deleteMany({ _id: { $in: objectIds } });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { error: "未找到要删除的书籍" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: `成功删除 ${result.deletedCount} 本书籍`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("批量删除书籍时出错:", error);
+    return NextResponse.json({ error: "批量删除书籍失败" }, { status: 500 });
   }
 }

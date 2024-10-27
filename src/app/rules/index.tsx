@@ -1,67 +1,29 @@
 "use client";
-import { cn } from "@/lib/utils";
 import axios from "axios";
-import React, { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import React, { useState, useEffect } from "react";
+import { SupplierRule } from "@/types/rules";
+import type { TableProps } from "antd";
+import { Table, Button, Modal, Input } from "antd";
 import toast from "react-hot-toast";
-import { RemoteRunnable } from "@langchain/core/runnables/remote";
-
-interface FileWithPreview extends File {
-  preview: string;
-  base64?: string; // 新增 base64 屬性
+interface KeyObject {
+  name: string;
+  w: number;
 }
 
 const RulesPage: React.FC = () => {
-  const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [agentLoading, setAgentLoading] = useState(false);
-  const [ids, setIds] = useState<string[]>([]);
-  const [fileStatus, setFileStatus] = useState<{ [key: string]: string }>({});
-  const [allUploaded, setAllUploaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "spreadsheets">(
-    "documents"
-  );
+  const [rules, setRules] = useState<SupplierRule[]>([]);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<SupplierRule | null>(null);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setFiles(
-      acceptedFiles.map((file) =>
-        Object.assign(file, {
-          preview: URL.createObjectURL(file),
-        })
-      )
-    );
-  }, []);
-
-  const {
-    getRootProps: getDocumentRootProps,
-    getInputProps: getDocumentInputProps,
-  } = useDropzone({
-    onDrop,
-    multiple: true,
-    maxFiles: 5,
-    accept: {
-      "application/pdf": [".pdf"],
-      "application/msword": [".doc"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        [".docx"],
-    },
-  });
-
-  const {
-    getRootProps: getSpreadsheetRootProps,
-    getInputProps: getSpreadsheetInputProps,
-  } = useDropzone({
-    onDrop,
-    multiple: true,
-    maxFiles: 5,
-    accept: {
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-        ".xlsx",
-      ],
-      "application/vnd.ms-excel": [".xls"],
-      "text/csv": [".csv"],
-    },
-  });
+  const getRules = async () => {
+    try {
+      const response = await axios.get("/api/rules");
+      console.log(response.data);
+      setRules(response.data);
+    } catch (error) {
+      console.error("獲取規則時出錯:", error);
+    }
+  };
 
   const saveToMongoDB = async (fileInfos: { name: string; url: string }[]) => {
     try {
@@ -88,223 +50,298 @@ const RulesPage: React.FC = () => {
       console.error("保存到MongoDB時出錯:", error);
     }
   };
-  const handleUpload = async () => {
-    setLoading(true);
-    const toastId = toast.loading(`正在上傳`);
-    try {
-      const uploadPromises = files.map(async (file) => {
-        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳中" }));
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          setFileStatus((prev) => ({
-            ...prev,
-            [file.name]: "上傳失敗，請小於4MB",
-          }));
-          throw new Error(`上傳文件 ${file.name} 失敗`);
-        }
-
-        const result = await response.json();
-        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳完成" }));
-        return { name: file.name, url: result.fileUrl };
-      });
-
-      const fileUrls = await Promise.all(uploadPromises);
-      const ids = await saveToMongoDB(fileUrls);
-      setIds(ids);
-      toast.success("所有文件上傳成功", {
-        id: toastId,
-      });
-      if (ids.length > 0) {
-        const promises = ids.map((id: string, index: number) =>
-          callDocAgentAPI(id, fileUrls[index].name)
-        );
-        // 使用 Promise.allSettled 來同時執行所有 API 調用
-        const results = await Promise.allSettled(promises);
-
-        // 處理結果
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
-            console.log(`文件 ${fileUrls[index].name} 轉換成功`);
-          } else {
-            console.error(
-              `文件 ${fileUrls[index].name} 轉換失敗:`,
-              result.reason
+  const keyArray =
+    rules.length > 0
+      ? Object.keys(rules[0]).filter((key) => key !== "_id")
+      : [];
+  const wrapperStyle: React.CSSProperties = {
+    whiteSpace: "normal",
+    wordWrap: "break-word",
+    wordBreak: "break-all",
+  };
+  const rulesKeyConfig: { [key: string]: KeyObject } = {
+    _id: { name: "_id", w: 120 },
+    publisher_name: { name: "出版社名稱", w: 100 },
+    supplier_name: { name: "供應商名稱", w: 100 },
+    publisher_id: { name: "出版社ID", w: 100 },
+    supplier_id: { name: "供應商ID", w: 100 },
+    rule: { name: "轉換規則", w: 300 },
+    tips: { name: "注意事項", w: 300 },
+    score: { name: "分數", w: 50 },
+  };
+  const columnOrder = [
+    "publisher_name",
+    "supplier_name",
+    "publisher_id",
+    "supplier_id",
+    "rule",
+    "tips",
+    "score",
+  ];
+  const columns: TableProps<SupplierRule>["columns"] = [
+    {
+      title: "操作",
+      key: "action",
+      fixed: "left",
+      width: 90,
+      render: (_, record) => (
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick(record);
+            }}
+          >
+            編輯
+          </Button>
+        </div>
+      ),
+    },
+    ...columnOrder.map((key) => {
+      const baseColumn = {
+        title: rulesKeyConfig[key]?.name || key,
+        dataIndex: ["content", key],
+        key: key,
+        ellipsis: true,
+        width: rulesKeyConfig[key]?.w || 150,
+        className: "text-base",
+      };
+      if (key === "publisher_name") {
+        return {
+          ...baseColumn,
+          fixed: "left" as any,
+          render: (text: any, row: any) => {
+            return <div style={wrapperStyle}>{row.publisher_name || "-"}</div>;
+          },
+        };
+      }
+      if (key === "rule" || key === "tips") {
+        return {
+          ...baseColumn,
+          render: (text: any, row: any) => {
+            return (
+              <div
+                style={{
+                  ...wrapperStyle,
+                  maxHeight: "300px", // 設置最大高度
+                  overflowY: "auto", // 添加垂直滾動條
+                  padding: "5px", // 添加一些內邊距以提高可讀性
+                }}
+              >
+                {row[key]?.split("\n").map((line: string, index: number) => (
+                  <React.Fragment key={index}>
+                    {line}
+                    {index < row[key].split("\n").length - 1 && <br />}
+                  </React.Fragment>
+                )) || "-"}
+              </div>
             );
-          }
-        });
+          },
+        };
+      }
+      if (key === "rule") {
+        return {
+          ...baseColumn,
+          render: (text: any, row: any) => {
+            return (
+              <div
+                style={{
+                  ...wrapperStyle,
+                  maxHeight: "300px", // 設置最大高度
+                  overflowY: "auto", // 添加垂直滾動條
+                  padding: "5px", // 添加一些內邊距以提高可讀性
+                }}
+              >
+                {row[key]?.split("\n").map((line: string, index: number) => (
+                  <React.Fragment key={index}>
+                    {line}
+                    {index < row[key].split("\n").length - 1 && <br />}
+                  </React.Fragment>
+                )) || "-"}
+              </div>
+            );
+          },
+        };
+      }
+      return {
+        ...baseColumn,
+        render: (text: any, row: any) => {
+          return <div style={wrapperStyle}>{row[key] || "-"}</div>;
+        },
+      };
+    }),
+  ];
+  const handleEditModalClose = () => {
+    setIsEditModalVisible(false);
+  };
+  const handleEdit = async (record: SupplierRule) => {
+    try {
+      console.log(record);
+      const response = await axios.put(`/api/rules/${record._id}`, {
+        publisher_name: record.publisher_name || "",
+        supplier_name: record.supplier_name || "",
+        publisher_id: record.publisher_id || "",
+        supplier_id: record.supplier_id || "",
+        rule: record.rule || "",
+        tips: record.tips || "",
+        score: record.score || "",
+      });
+
+      if (response.status === 200) {
+        toast.success("規則更新成功");
+        getRules();
       }
     } catch (error) {
-      console.error("上傳文件時出錯:", error);
-      toast.error("上傳失敗", {
-        id: toastId,
-      });
-    } finally {
-      setLoading(false);
+      console.error("更新書籍資訊時出錯:", error);
+      toast.error("更新書籍資訊失敗");
     }
   };
-  const callDocAgentAPI = async (fileId: string, fileName: string) => {
-    setFileStatus((prev) => ({ ...prev, [fileName]: "轉換中" }));
-    setAgentLoading(true);
-    const toastId = toast.loading(`正在轉換 ${fileName}`);
-    try {
-      const result = await axios.post(
-        process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transform"
-          : "http://localhost:9000/transform",
-        {
-          file_id: fileId,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer valid_api_key",
-          },
-        }
-      );
-      console.log(result);
-      toast.success(`轉換 ${fileName} 成功`, {
-        id: toastId,
-      });
-      toast.dismiss(toastId);
-      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
-      return result;
-    } catch (error: any) {
-      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
-      console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`, {
-        id: toastId,
-      });
-      throw error;
-    } finally {
-      setAgentLoading(false);
-    }
+  const handleEditClick = (record: SupplierRule) => {
+    setEditingRecord(record);
+    setIsEditModalVisible(true);
   };
-  const handleReupload = () => {
-    setFiles([]);
-    setIds([]);
-    setFileStatus({});
-    setAllUploaded(false);
-  };
+
+  useEffect(() => {
+    getRules();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6">
-        <div className="mb-6">
-          <div className="flex border-b">
-            <button
-              className={`py-2 px-4 ${
-                activeTab === "documents"
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-500"
-              }`}
-              onClick={() => setActiveTab("documents")}
-            >
-              文檔上傳
-            </button>
-            <button
-              disabled={true}
-              className={`py-2 px-4 opacity-50 cursor-not-allowed ${
-                activeTab === "spreadsheets"
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-500"
-              }`}
-              onClick={() => setActiveTab("spreadsheets")}
-            >
-              表格上傳
-            </button>
-          </div>
-        </div>
-        {files.length === 0 ? (
-          <div
-            {...(activeTab === "documents"
-              ? getDocumentRootProps()
-              : getSpreadsheetRootProps())}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
+      <Table
+        pagination={{ pageSize: 10 }}
+        columns={columns}
+        dataSource={rules}
+        rowKey={(row) => row._id}
+        scroll={{ x: "max-content" }}
+        sticky={true} // 添加 sticky 屬性
+        // onRow={(record) => ({
+        //   onClick: () => onRowClick(record), // On row click, show modal
+        // })}
+        className="whitespace-pre-wrap"
+      />
+
+      <Modal
+        title="編輯書籍信息"
+        open={isEditModalVisible}
+        onCancel={handleEditModalClose}
+        footer={null}
+        width={1000}
+      >
+        {editingRecord && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEdit(editingRecord);
+              handleEditModalClose();
+            }}
           >
-            <input
-              {...(activeTab === "documents"
-                ? getDocumentInputProps()
-                : getSpreadsheetInputProps())}
-            />
-            <div className="mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                <svg
-                  className="w-6 h-6 text-blue-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-1">出版社名稱</label>
+                <Input
+                  value={editingRecord.publisher_name}
+                  onChange={(e) =>
+                    setEditingRecord({
+                      ...editingRecord,
+                      publisher_name: e.target.value,
+                    })
+                  }
+                  placeholder="出版社名稱"
+                />
+              </div>
+              <div>
+                <label className="block mb-1">供應商名稱</label>
+                <Input
+                  value={editingRecord.supplier_name}
+                  onChange={(e) =>
+                    setEditingRecord({
+                      ...editingRecord,
+                      supplier_name: e.target.value,
+                    })
+                  }
+                  placeholder="供應商名稱"
+                />
+              </div>
+              <div>
+                <label className="block mb-1">出版社 ID</label>
+                <Input
+                  value={editingRecord.publisher_id}
+                  onChange={(e) =>
+                    setEditingRecord({
+                      ...editingRecord,
+                      publisher_id: e.target.value,
+                    })
+                  }
+                  placeholder="出版社 ID"
+                />
+              </div>
+              <div>
+                <label className="block mb-1">供應商 ID</label>
+                <Input
+                  value={editingRecord.supplier_id}
+                  onChange={(e) =>
+                    setEditingRecord({
+                      ...editingRecord,
+                      supplier_id: e.target.value,
+                    })
+                  }
+                  placeholder="供應商 ID"
+                />
               </div>
             </div>
-            <p className="text-gray-600 mb-2">
-              {activeTab === "documents"
-                ? "上傳文檔 (PDF, DOC, DOCX)"
-                : "上傳表格 (XLSX, XLS, CSV)"}
-            </p>
-            <p className="text-gray-400 text-sm">最多5筆</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-center mb-4">
-              你已經上傳 {files.length} 筆資料
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {files.map((file, index) => (
-                <div key={file.name} className="flex items-center space-x-2">
-                  <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm uppercase">
-                    {file.name.split(".")[1]}
+            <div className="flex flex-col gap-4 mt-4">
+              {Object.entries(editingRecord)
+                .filter(
+                  ([key]) =>
+                    key !== "_id" &&
+                    key !== "supplier_id" &&
+                    key !== "publisher_id" &&
+                    key !== "supplier_name" &&
+                    key !== "publisher_name"
+                )
+                .sort(
+                  (a, b) =>
+                    columnOrder.indexOf(a[0]) - columnOrder.indexOf(b[0])
+                )
+                .map(([key, value]) => (
+                  <div key={key}>
+                    <label className="block mb-1">
+                      {rulesKeyConfig[key]?.name || key}
+                    </label>
+                    {key === "rule" || key === "tips" ? (
+                      <Input.TextArea
+                        value={value as string}
+                        autoSize={{ minRows: 4, maxRows: 10 }} // 替換固定高度
+                        onChange={(e) =>
+                          setEditingRecord({
+                            ...editingRecord,
+                            [key]: e.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      <Input
+                        value={value as string}
+                        onChange={(e) =>
+                          setEditingRecord({
+                            ...editingRecord,
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={rulesKeyConfig[key]?.name || key}
+                      />
+                    )}
                   </div>
-                  <span className="text-gray-700">
-                    {file.name.split(".")[0]}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {fileStatus[file.name] || "等待上傳"}
-                  </span>
-                </div>
-              ))}
+                ))}
             </div>
-          </div>
+            <div className="mt-4 text-right">
+              <Button type="primary" htmlType="submit">
+                保存
+              </Button>
+            </div>
+          </form>
         )}
-        {files.length > 0 && (
-          <div className="mt-6 text-center flex justify-center gap-4">
-            <button
-              className={cn(
-                "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded",
-                loading || agentLoading ? "opacity-50 cursor-not-allowed" : ""
-              )}
-              onClick={handleReupload}
-              disabled={loading || agentLoading}
-            >
-              重新上傳
-            </button>
-            <button
-              className={cn(
-                "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",
-                loading && "opacity-50 cursor-not-allowed"
-              )}
-              onClick={() => handleUpload()}
-            >
-              {loading || agentLoading ? "上傳中..." : "確認上傳"}
-            </button>
-          </div>
-        )}
-      </div>
+      </Modal>
     </div>
   );
 };

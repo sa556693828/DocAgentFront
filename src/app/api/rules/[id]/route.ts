@@ -12,7 +12,7 @@ export async function GET(
     const client = await clientPromise;
     const db = client.db("DocAgent");
     const { id } = params;
-    const books = await db.collection("standard_form").find({
+    const books = await db.collection("publisher_rule").find({
       _id: new ObjectId(id),
     });
 
@@ -41,28 +41,41 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const { supplier_name, content } = await request.json();
+    const {
+      publisher_name,
+      supplier_name,
+      publisher_id,
+      supplier_id,
+      rule,
+      tips,
+      score,
+    } = await request.json();
 
     const client = await clientPromise;
     const db = client.db("DocAgent");
-    const collection = db.collection("standard_form");
+    const collection = db.collection("publisher_rule");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {
         $set: {
+          publisher_name,
           supplier_name,
-          content,
+          publisher_id,
+          supplier_id,
+          rule,
+          tips,
+          score,
         },
       }
     );
 
     if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "找不到該書籍" }, { status: 404 });
+      return NextResponse.json({ error: "找不到該規則" }, { status: 404 });
     }
 
     return NextResponse.json({ message: "更新成功" }, { status: 200 });
   } catch (error) {
-    console.error("更新書籍時出錯:", error);
-    return NextResponse.json({ error: "更新書籍失敗" }, { status: 500 });
+    console.error("更新規則時出錯:", error);
+    return NextResponse.json({ error: "更新規則失敗" }, { status: 500 });
   }
 }
