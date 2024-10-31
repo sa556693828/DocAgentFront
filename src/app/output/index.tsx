@@ -80,8 +80,8 @@ const OutputPage: React.FC = () => {
     }
   };
   const keyArray = [
-    "publisher_name",
     "supplier_name",
+    "publisher_name",
     ...Object.keys(StandardFormat.content),
   ];
   const wrapperStyle: React.CSSProperties = {
