@@ -155,10 +155,12 @@ const InputPage: React.FC = () => {
     setAgentLoading(true);
     const toastId = toast.loading(`正在轉換 ${fileName}`);
     try {
-      const result = await axios.post(
+      const url =
         process.env.NODE_ENV === "production"
           ? process.env.NEXT_PUBLIC_NGROK_URL + "/transform"
-          : "http://localhost:9000/transform",
+          : "http://54.238.1.161:9000/transform";
+      const result = await axios.post(
+        url,
         {
           file_id: fileId,
         },
@@ -182,6 +184,7 @@ const InputPage: React.FC = () => {
       toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`, {
         id: toastId,
       });
+      toast.dismiss(toastId);
       throw error;
     } finally {
       setAgentLoading(false);
