@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic"; // 禁用缓存
 export async function GET() {
   try {
     const client = await clientPromise;
-    const db = client.db("DocAgent");
+    const db = client.db("Doc-Agent");
     const rules = await db
-      .collection("publisher_rule")
+      .collection("standard_mapping")
       .find({})
       .sort({ metacritic: -1 })
       // .limit(10)
@@ -42,8 +42,8 @@ export async function PUT(
     const { id } = params;
     const { publisher_name, rule, tips, score } = await request.json();
     const client = await clientPromise;
-    const db = client.db("DocAgent");
-    const collection = db.collection("publisher_rule");
+    const db = client.db("Doc-Agent");
+    const collection = db.collection("standard_mapping");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {

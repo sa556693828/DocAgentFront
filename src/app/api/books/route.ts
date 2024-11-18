@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic"; // 禁用缓存
 export async function GET() {
   try {
     const client = await clientPromise;
-    const db = client.db("DocAgent");
+    const db = client.db("Doc-Agent");
     const books = await db
-      .collection("standard_form")
+      .collection("standard_docs")
       .find({})
       .sort({ metacritic: -1 })
       // .limit(10)
@@ -42,8 +42,8 @@ export async function PUT(
     const { id } = params;
     const { publisher_name, content } = await request.json();
     const client = await clientPromise;
-    const db = client.db("DocAgent");
-    const collection = db.collection("standard_form");
+    const db = client.db("Doc-Agent");
+    const collection = db.collection("standard_docs");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {
@@ -73,8 +73,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("DocAgent");
-    const collection = db.collection("standard_form");
+    const db = client.db("Doc-Agent");
+    const collection = db.collection("standard_docs");
 
     const objectIds = ids.map((id) => new ObjectId(id));
     const result = await collection.deleteMany({ _id: { $in: objectIds } });

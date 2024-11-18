@@ -1,10 +1,9 @@
+import { BookType } from "./books";
+
 export interface SupplierRule {
   _id: string;
-  publisher_id: string;
-  supplier_id: string;
-  publisher_name: string;
-  supplier_name: string;
-  rule: string;
-  score: number;
-  tips: string;
+  standard_col: keyof BookType;
+  pre: string[];
+  exception: string;
+  rules: string;
 }

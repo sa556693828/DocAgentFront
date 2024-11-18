@@ -10,9 +10,9 @@ export async function GET(
 ) {
   try {
     const client = await clientPromise;
-    const db = client.db("DocAgent");
+    const db = client.db("Doc-Agent");
     const { id } = params;
-    const books = await db.collection("standard_form").find({
+    const books = await db.collection("standard_docs").find({
       _id: new ObjectId(id),
     });
 
@@ -44,8 +44,8 @@ export async function PUT(
     const { publisher_name, content } = await request.json();
 
     const client = await clientPromise;
-    const db = client.db("DocAgent");
-    const collection = db.collection("standard_form");
+    const db = client.db("Doc-Agent");
+    const collection = db.collection("standard_docs");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {

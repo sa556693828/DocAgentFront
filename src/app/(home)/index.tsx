@@ -157,8 +157,8 @@ const InputPage: React.FC = () => {
     try {
       const url =
         process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transform"
-          : "http://54.238.1.161:9000/transform";
+          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2"
+          : "http://54.238.1.161:9000/transformV2";
       const result = await axios.post(
         url,
         {
@@ -210,7 +210,7 @@ const InputPage: React.FC = () => {
               }`}
               onClick={() => setActiveTab("documents")}
             >
-              文檔上傳
+              文檔上傳 V2
             </button>
             <button
               disabled={true}
@@ -255,9 +255,9 @@ const InputPage: React.FC = () => {
                 </svg>
               </div>
             </div>
-            <p className="text-gray-600 mb-2">
+            <p className="text-gray-600 whitespace-pre-wrap mb-2">
               {activeTab === "documents"
-                ? "上傳文檔 (PDF, DOC, DOCX)"
+                ? "上傳文檔 (PDF, DOCX)\n請將 .doc 轉成 .docx 再做使用\n以便提高準確率"
                 : "上傳表格 (XLSX, XLS, CSV)"}
             </p>
             <p className="text-gray-400 text-sm">最多5筆</p>

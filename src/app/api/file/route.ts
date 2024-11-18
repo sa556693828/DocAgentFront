@@ -1,10 +1,9 @@
 import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
-
 export async function POST(request: Request) {
   try {
     const client = await clientPromise;
-    const db = client.db("DocAgent");
+    const db = client.db("Doc-Agent");
     const data = await request.json();
 
     const { files } = data;
@@ -18,7 +17,9 @@ export async function POST(request: Request) {
 
     const fileIds = [];
     for (const file of files) {
-      const existingFile = await db.collection("input_files").findOne({ name: file.name });
+      const existingFile = await db
+        .collection("input_files")
+        .findOne({ name: file.name });
       if (existingFile) {
         fileIds.push(existingFile._id);
       } else {
@@ -29,12 +30,11 @@ export async function POST(request: Request) {
         fileIds.push(result.insertedId);
       }
     }
-    
+
     return NextResponse.json(
       { message: "文件處理成功", ids: fileIds },
       { status: 200 }
     );
-    
   } catch (e) {
     console.error(e);
     return NextResponse.json(
