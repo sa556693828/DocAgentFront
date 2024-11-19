@@ -159,7 +159,7 @@ const InputPage: React.FC = () => {
         process.env.NODE_ENV === "production"
           ? process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2"
           : "http://54.238.1.161:9000/transformV2";
-      const result = await axios.post(
+      const res = await axios.post(
         url,
         {
           file_id: fileId,
@@ -171,13 +171,13 @@ const InputPage: React.FC = () => {
           },
         }
       );
-      console.log(result);
+      console.log(res.data);
       toast.success(`轉換 ${fileName} 成功`, {
         id: toastId,
       });
       toast.dismiss(toastId);
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
-      return result;
+      return res.data;
     } catch (error: any) {
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
       console.error("調用DocAgent API時出錯:", error.response.data.error);

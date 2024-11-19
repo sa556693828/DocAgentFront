@@ -11,7 +11,7 @@ export async function GET() {
     const books = await db
       .collection("standard_docs")
       .find({})
-      .sort({ metacritic: -1 })
+      .sort({ metacritic: -1, _id: 1 }) // 添加 _id: 1 以確保排序有效
       // .limit(10)
       .toArray();
 
