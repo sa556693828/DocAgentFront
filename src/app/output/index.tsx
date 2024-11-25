@@ -9,6 +9,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import NormalModal from "@/components/Modal/NormalModal";
 import RAGModal from "@/components/Modal/RAGModal";
+import Markdown from "react-markdown";
 
 const OutputPage: React.FC = () => {
   const [data, setData] = useState<BookData[]>([]);
@@ -154,21 +155,9 @@ const OutputPage: React.FC = () => {
             showTitle: false,
           },
           render: (text: any) => (
-            <Tooltip
-              title={text}
-              placement="topLeft"
-              overlayStyle={{ maxWidth: "50%" }}
-            >
-              <div
-                style={{
-                  ...wrapperStyle,
-                  maxHeight: "100px",
-                  overflow: "hidden",
-                }}
-              >
-                {text || "-"}
-              </div>
-            </Tooltip>
+            <Markdown className="max-h-[150px] whitespace-pre-wrap overflow-auto">
+              {text || "-"}
+            </Markdown>
           ),
         };
       }
@@ -425,20 +414,9 @@ const OutputPage: React.FC = () => {
                     key === "得獎紀錄" ||
                     key === "內容頁次" ||
                     key === "特別收錄／編輯的話" ? (
-                      <Input.TextArea
-                        value={value as string}
-                        onChange={(e) =>
-                          setEditingRecord({
-                            ...editingRecord,
-                            content: {
-                              ...editingRecord.content,
-                              [key]: e.target.value,
-                            },
-                          })
-                        }
-                        placeholder={outputKeyConfig[key]?.name || key}
-                        rows={4}
-                      />
+                      <Markdown className="max-h-[150px] border min-h-[26px] rounded-md my-2 whitespace-pre-wrap overflow-auto">
+                        {value}
+                      </Markdown>
                     ) : (
                       <Input
                         value={value as string}
