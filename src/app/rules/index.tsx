@@ -20,7 +20,20 @@ const RulesPage: React.FC = () => {
   const getRules = async () => {
     try {
       const response = await axios.get("/api/rules");
-      setRules(response.data);
+      const sortedRules = response.data.sort(
+        (a: SupplierRule, b: SupplierRule) => {
+          const standardKeys = Object.keys(StandardFormat.content);
+          const aIndex = standardKeys.indexOf(a.standard_col);
+          const bIndex = standardKeys.indexOf(b.standard_col);
+
+          // 如果找不到对应的键，将其排到最后
+          if (aIndex === -1) return 1;
+          if (bIndex === -1) return -1;
+
+          return aIndex - bIndex;
+        }
+      );
+      setRules(sortedRules);
     } catch (error) {
       console.error("獲取規則時出錯:", error);
     }
