@@ -182,7 +182,7 @@ const InputPage: React.FC = () => {
         </div>
       </Collapse>
       <Collapse header="3. 上傳文檔">
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col items-center justify-center">
           <UploadSection />
         </div>
       </Collapse>

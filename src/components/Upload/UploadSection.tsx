@@ -37,8 +37,8 @@ const UploadSection: React.FC = () => {
     multiple: true,
     maxFiles: 5,
     accept: {
-      "application/pdf": [".pdf"],
-      "application/msword": [".doc"],
+      // "application/pdf": [".pdf"],
+      // "application/msword": [".doc"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         [".docx"],
     },
@@ -237,8 +237,9 @@ const UploadSection: React.FC = () => {
           </div>
           <p className="text-gray-600 whitespace-pre-wrap mb-2">
             {activeTab === "documents"
-              ? "上傳文檔 (PDF, DOCX)\n請將 .doc 轉成 .docx 再做使用\n以便提高準確率"
-              : "上傳表格 (XLSX, XLS, CSV)"}
+              ? "上傳 .DOCX 文檔"
+              : // ? "上傳文檔 (PDF, DOCX)\n請將 .doc 轉成 .docx 再做使用\n以便提高準確率"
+                "上傳表格 (XLSX, XLS, CSV)"}
           </p>
           <p className="text-gray-400 text-sm">最多5筆</p>
         </div>
