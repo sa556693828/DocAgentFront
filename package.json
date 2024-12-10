@@ -17,6 +17,7 @@
     "clsx": "^2.1.1",
     "csv-stringify": "^6.5.1",
     "formidable": "^3.5.1",
+    "http2-wrapper": "^2.2.1",
     "langchain": "^0.2.17",
     "lucide-react": "^0.436.0",
     "mongodb": "^6.8.0",

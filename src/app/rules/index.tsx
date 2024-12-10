@@ -44,10 +44,7 @@ const RulesPage: React.FC = () => {
     setNewRule("");
     const toastId = toast.loading(`正在更新規則： ${newRule}`);
     try {
-      const url =
-        process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/update_rules"
-          : "http://54.238.1.161:9000/update_rules";
+      const url = process.env.NEXT_PUBLIC_NGROK_URL + "/update_rules";
       const result = await axios.post(
         url,
         {

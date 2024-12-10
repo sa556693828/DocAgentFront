@@ -1,313 +1,259 @@
 "use client";
-import { cn } from "@/lib/utils";
+import Collapse from "@/components/Collapes";
+import UploadSection from "@/components/Upload/UploadSection";
+import { MappingRule } from "@/types/rules";
+import { Button, Input, Modal, Table, TableProps } from "antd";
 import axios from "axios";
-import React, { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { RemoteRunnable } from "@langchain/core/runnables/remote";
 
-interface FileWithPreview extends File {
-  preview: string;
-  base64?: string; // 新增 base64 屬性
+interface KeyObject {
+  name: string;
+  w: number;
+}
+interface ExpandedData {
+  _id: string;
+  standard: string;
+  pre_col_key: string;
+  pre_col_values: string[];
 }
 
 const InputPage: React.FC = () => {
-  const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [agentLoading, setAgentLoading] = useState(false);
-  const [ids, setIds] = useState<string[]>([]);
-  const [fileStatus, setFileStatus] = useState<{ [key: string]: string }>({});
-  const [allUploaded, setAllUploaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "spreadsheets">(
-    "documents"
-  );
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setFiles(
-      acceptedFiles.map((file) =>
-        Object.assign(file, {
-          preview: URL.createObjectURL(file),
-        })
-      )
-    );
-  }, []);
-
-  const {
-    getRootProps: getDocumentRootProps,
-    getInputProps: getDocumentInputProps,
-  } = useDropzone({
-    onDrop,
-    multiple: true,
-    maxFiles: 5,
-    accept: {
-      "application/pdf": [".pdf"],
-      "application/msword": [".doc"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        [".docx"],
-    },
-  });
-
-  const {
-    getRootProps: getSpreadsheetRootProps,
-    getInputProps: getSpreadsheetInputProps,
-  } = useDropzone({
-    onDrop,
-    multiple: true,
-    maxFiles: 5,
-    accept: {
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-        ".xlsx",
-      ],
-      "application/vnd.ms-excel": [".xls"],
-      "text/csv": [".csv"],
-    },
-  });
-
-  const saveToMongoDB = async (fileInfos: { name: string; url: string }[]) => {
+  const [mapping, setMapping] = useState<ExpandedData[]>([]);
+  const [selectedRow, setSelectedRow] = useState<ExpandedData | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  const [editingRecord, setEditingRecord] = useState<ExpandedData | null>(null);
+  const getMapping = async () => {
     try {
-      const response = await fetch("/api/file", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          files: fileInfos.map((file) => ({
-            name: file.name,
-            url: file.url,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("保存到MongoDB失敗");
-      }
-
-      const result = await response.json();
-      return result.ids;
-    } catch (error) {
-      console.error("保存到MongoDB時出錯:", error);
-    }
-  };
-  const handleUpload = async () => {
-    setLoading(true);
-    const toastId = toast.loading(`正在上傳`);
-    try {
-      const uploadPromises = files.map(async (file) => {
-        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳中" }));
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
+      const response = await axios.get("/api/mapping");
+      const filterData = response.data
+        .reverse()
+        .sort((a: MappingRule, b: MappingRule) => {
+          if (a.standard === "") return 1;
+          if (b.standard === "") return -1;
+          return 0;
         });
-
-        if (!response.ok) {
-          setFileStatus((prev) => ({
-            ...prev,
-            [file.name]: "上傳失敗，請小於4MB",
+      const expandedData = filterData.flatMap(
+        (item: MappingRule, raw_index: number) => {
+          const keys = Object.keys(item.pre_col);
+          return keys.map((key, index) => ({
+            id: `${raw_index}-${index}`,
+            objID: item._id,
+            standard: item.standard,
+            pre_col_key: key,
+            pre_col_values: item.pre_col[key],
           }));
-          throw new Error(`上傳文件 ${file.name} 失敗`);
-        }
-
-        const result = await response.json();
-        setFileStatus((prev) => ({ ...prev, [file.name]: "上傳完成" }));
-        return { name: file.name, url: result.fileUrl };
-      });
-
-      const fileUrls = await Promise.all(uploadPromises);
-      const ids = await saveToMongoDB(fileUrls);
-      setIds(ids);
-      toast.success("所有文件上傳成功", {
-        id: toastId,
-      });
-      if (ids.length > 0) {
-        const promises = ids.map((id: string, index: number) =>
-          callDocAgentAPI(id, fileUrls[index].name)
-        );
-        // 使用 Promise.allSettled 來同時執行所有 API 調用
-        const results = await Promise.allSettled(promises);
-
-        // 處理結果
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
-            console.log(`文件 ${fileUrls[index].name} 轉換成功`);
-          } else {
-            console.error(
-              `文件 ${fileUrls[index].name} 轉換失敗:`,
-              result.reason
-            );
-          }
-        });
-      }
-    } catch (error) {
-      console.error("上傳文件時出錯:", error);
-      toast.error("上傳失敗", {
-        id: toastId,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const callDocAgentAPI = async (fileId: string, fileName: string) => {
-    setFileStatus((prev) => ({ ...prev, [fileName]: "轉換中" }));
-    setAgentLoading(true);
-    const toastId = toast.loading(`正在轉換 ${fileName}`);
-    try {
-      const url =
-        process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2"
-          : "http://54.238.1.161:9000/transformV2";
-      const res = await axios.post(
-        url,
-        {
-          file_id: fileId,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer valid_api_key",
-          },
         }
       );
-      console.log(res.data);
-      toast.success(`轉換 ${fileName} 成功`, {
-        id: toastId,
-      });
-      toast.dismiss(toastId);
-      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
-      return res.data;
-    } catch (error: any) {
-      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
-      console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`, {
-        id: toastId,
-      });
-      toast.dismiss(toastId);
-      throw error;
-    } finally {
-      setAgentLoading(false);
+      setMapping(expandedData);
+    } catch (error) {
+      console.error("獲取規則時出錯:", error);
     }
   };
-  const handleReupload = () => {
-    setFiles([]);
-    setIds([]);
-    setFileStatus({});
-    setAllUploaded(false);
+  const wrapperStyle: React.CSSProperties = {
+    whiteSpace: "normal",
+    wordWrap: "break-word",
+    wordBreak: "break-all",
   };
+  const columns: TableProps<any>["columns"] = [
+    {
+      title: "標準欄位",
+      width: 150,
+      dataIndex: "standard",
+      key: "standard",
+      fixed: "left",
+      render: (text: any, row: any, index: number) => {
+        if (!text) {
+          return {
+            children: (
+              <div style={wrapperStyle} className="text-lg font-bold">
+                {"-"}
+              </div>
+            ),
+            props: {
+              rowSpan: 1,
+            },
+          };
+        }
+
+        const sameStandardRows = mapping.filter(
+          (item) => item.standard === row.standard
+        );
+        const firstIndex = mapping.findIndex(
+          (item) => item.standard === row.standard
+        );
+        const rowSpan = index === firstIndex ? sameStandardRows.length : 0;
+        return {
+          children: (
+            <div style={wrapperStyle} className="text-lg font-bold">
+              {text}
+            </div>
+          ),
+          props: {
+            rowSpan,
+          },
+        };
+      },
+    },
+    {
+      title: "預處理欄位",
+      dataIndex: "pre_col_key",
+      key: "pre_col_key",
+      render: (text: any) => <div style={wrapperStyle}>{text}</div>,
+    },
+    {
+      title: "出版社欄位名稱",
+      dataIndex: "pre_col_values",
+      key: "pre_col_values",
+      render: (values: any) => (
+        <div style={wrapperStyle} className="text-base max-w-[400px]">
+          {values.join(" ｜ ")}
+        </div>
+      ),
+    },
+  ];
+
+  const onRowClick = (record: any) => {
+    setSelectedRow(record);
+    setEditingRecord(record);
+    setIsModalVisible(true);
+  };
+  const handleEdit = async (record: any) => {
+    try {
+      const res = await axios.put(`/api/mapping/${record.objID}`, record);
+      toast.success("更新成功");
+      getMapping();
+    } catch (error) {
+      console.error("更新規則時出錯:", error);
+    }
+  };
+  useEffect(() => {
+    getMapping();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6">
-        <div className="mb-6">
-          <div className="flex border-b">
-            <button
-              className={`py-2 px-4 ${
-                activeTab === "documents"
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-500"
-              }`}
-              onClick={() => setActiveTab("documents")}
+    <div className="min-h-screen bg-gray-100 flex items-center w-full flex-col p-4">
+      <Collapse header="1. 確認上傳文檔格式" isTrain={true}>
+        <div className="space-y-4">
+          <div>
+            <p>請將 .doc 轉成 .docx，確保模型穩定運作。</p>
+            <a
+              href="https://www.freeconvert.com/doc-to-docx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-800"
             >
-              文檔上傳 V2
-            </button>
-            <button
-              disabled={true}
-              className={`py-2 px-4 opacity-50 cursor-not-allowed ${
-                activeTab === "spreadsheets"
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-500"
-              }`}
-              onClick={() => setActiveTab("spreadsheets")}
-            >
-              表格上傳
-            </button>
+              轉換工具請參考
+            </a>
           </div>
-        </div>
-        {files.length === 0 ? (
-          <div
-            {...(activeTab === "documents"
-              ? getDocumentRootProps()
-              : getSpreadsheetRootProps())}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
+          {/* <button
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+            onClick={() => {
+              setStep(1);
+            }}
           >
-            <input
-              {...(activeTab === "documents"
-                ? getDocumentInputProps()
-                : getSpreadsheetInputProps())}
-            />
-            <div className="mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                <svg
-                  className="w-6 h-6 text-blue-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
+            已轉成標準格式
+          </button> */}
+        </div>
+      </Collapse>
+      <Collapse header="2. 確認出版社長文本欄位" isTrain={true}>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <p className="text-lg font-medium">
+              請先確認長文本欄位對應表，將新出版社的長文本欄位名稱填入
+            </p>
+            <p>
+              {`例如：『本書特色』需要對應到『商品簡介』，則點擊『商品簡介』下最適合的預處理欄位，填入『本書特色』，請用 , 分隔每一個欄位名稱`}
+            </p>
+            {/* <p>{`不需要對應到任何表準欄位的長文本欄位，請填入 '-'`}</p> */}
+          </div>
+          <Table
+            onRow={(record) => ({
+              onClick: () => onRowClick(record),
+            })}
+            pagination={{ pageSizeOptions: [20, 50, 100], pageSize: 20 }}
+            columns={columns}
+            dataSource={mapping}
+            rowKey={(row) => row.id}
+            scroll={{ x: "max-content" }}
+            sticky={true} // 添加 sticky 屬性
+            className="whitespace-pre-wrap"
+          />
+        </div>
+      </Collapse>
+      <Collapse header="3. 上傳文檔">
+        <div className="space-y-4">
+          <UploadSection />
+        </div>
+      </Collapse>
+      <Modal
+        title="編輯長文本欄位對應表"
+        open={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+        width={1000}
+      >
+        {selectedRow && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEdit(editingRecord);
+              setIsModalVisible(false);
+            }}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-1 text-lg">標準欄位</label>
+                <Input
+                  value={editingRecord?.standard}
+                  disabled={true}
+                  // onChange={(e) =>
+                  //   setEditingRecord({
+                  //     ...selectedRow,
+                  //     standard: e.target.value,
+                  //   })
+                  // }
+                  placeholder="標準欄位"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-lg">預處理欄位</label>
+                <Input
+                  value={editingRecord?.pre_col_key}
+                  disabled={true}
+                  // onChange={(e) =>
+                  //   setEditingRecord({
+                  //     ...selectedRow,
+                  //     pre_col_key: e.target.value,
+                  //   })
+                  // }
+                  placeholder="預處理欄位"
+                />
               </div>
             </div>
-            <p className="text-gray-600 whitespace-pre-wrap mb-2">
-              {activeTab === "documents"
-                ? "上傳文檔 (PDF, DOCX)\n請將 .doc 轉成 .docx 再做使用\n以便提高準確率"
-                : "上傳表格 (XLSX, XLS, CSV)"}
-            </p>
-            <p className="text-gray-400 text-sm">最多5筆</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-center mb-4">
-              你已經上傳 {files.length} 筆資料
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {files.map((file, index) => (
-                <div key={file.name} className="flex items-center space-x-2">
-                  <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm uppercase">
-                    {file.name.split(".")[1]}
-                  </div>
-                  <span className="text-gray-700">
-                    {file.name.split(".")[0]}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {fileStatus[file.name] || "等待上傳"}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-4 w-full ">
+              <label className="block mb-1 text-lg">
+                出版社欄位名稱(用,分隔每一個欄位名稱)
+              </label>
+              <Input
+                value={editingRecord?.pre_col_values.join(",")}
+                onChange={(e) =>
+                  setEditingRecord({
+                    ...selectedRow,
+                    pre_col_values: e.target.value.split(","),
+                  })
+                }
+                placeholder="出版社欄位名稱"
+              />
             </div>
-          </div>
+            <div className="mt-4 text-right">
+              <Button type="primary" htmlType="submit">
+                保存
+              </Button>
+            </div>
+          </form>
         )}
-        {files.length > 0 && (
-          <div className="mt-6 text-center flex justify-center gap-4">
-            <button
-              className={cn(
-                "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded",
-                loading || agentLoading ? "opacity-50 cursor-not-allowed" : ""
-              )}
-              onClick={handleReupload}
-              disabled={loading || agentLoading}
-            >
-              重新上傳
-            </button>
-            <button
-              className={cn(
-                "bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded",
-                loading && "opacity-50 cursor-not-allowed"
-              )}
-              onClick={() => handleUpload()}
-            >
-              {loading || agentLoading ? "上傳中..." : "確認上傳"}
-            </button>
-          </div>
-        )}
-      </div>
+      </Modal>
     </div>
   );
 };

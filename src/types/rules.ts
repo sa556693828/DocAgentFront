@@ -7,3 +7,8 @@ export interface SupplierRule {
   exception: string;
   rules: string;
 }
+export interface MappingRule {
+  _id: string;
+  standard: keyof BookType | "";
+  pre_col: any;
+}
