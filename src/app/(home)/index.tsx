@@ -28,11 +28,7 @@ const InputPage: React.FC = () => {
       const response = await axios.get("/api/mapping");
       const filterData = response.data
         .reverse()
-        .sort((a: MappingRule, b: MappingRule) => {
-          if (a.standard === "") return 1;
-          if (b.standard === "") return -1;
-          return 0;
-        });
+        .filter((item: MappingRule) => item.standard !== "");
       const expandedData = filterData.flatMap(
         (item: MappingRule, raw_index: number) => {
           const keys = Object.keys(item.pre_col);
