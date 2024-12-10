@@ -150,12 +150,9 @@ const UploadSection: React.FC = () => {
     setAgentLoading(true);
     const toastId = toast.loading(`正在轉換 ${fileName}`);
     try {
-      const url =
-        process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2"
-          : "http://54.238.1.161:9000/transformV2";
+      const url = process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2";
       const axiosInstance = axios.create({
-        timeout: 30000,
+        timeout: 90000,
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer valid_api_key",
@@ -165,7 +162,9 @@ const UploadSection: React.FC = () => {
       const res = await axiosInstance.post(url, {
         file_id: fileId,
       });
-      console.log(res.data);
+      if (res.data.error) {
+        throw new Error(res.data.error);
+      }
       toast.success(`轉換 ${fileName} 成功`, {
         id: toastId,
       });
@@ -175,7 +174,7 @@ const UploadSection: React.FC = () => {
     } catch (error: any) {
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
       console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 失敗: ${error.response.data.error}`, {
+      toast.error(`轉換 ${fileName} 過長或失敗: ${error.response.data.error}`, {
         id: toastId,
       });
       toast.dismiss(toastId);
