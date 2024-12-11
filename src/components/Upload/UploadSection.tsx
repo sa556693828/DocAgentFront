@@ -150,7 +150,7 @@ const UploadSection: React.FC = () => {
     setAgentLoading(true);
     const toastId = toast.loading(`正在轉換 ${fileName}`);
     try {
-      const url = process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2";
+      const url = process.env.NEXT_PUBLIC_API_URL + "/transformV2";
       const axiosInstance = axios.create({
         timeout: 600000,
         headers: {

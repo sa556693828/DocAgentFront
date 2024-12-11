@@ -25,16 +25,17 @@ const InputPage: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<ExpandedData | null>(null);
   const getMapping = async () => {
     try {
-      const response = await axios.get("/api/mapping");
-      const filterData = response.data
-        .reverse()
-        .filter((item: MappingRule) => item.standard !== "");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await axios.get(`${baseUrl}/get_mapping`);
+      const data = response.data.data;
+      const filterData = data.filter(
+        (item: MappingRule) => item.standard !== ""
+      );
       const expandedData = filterData.flatMap(
         (item: MappingRule, raw_index: number) => {
           const keys = Object.keys(item.pre_col);
           return keys.map((key, index) => ({
             id: `${raw_index}-${index}`,
-            objID: item._id,
             standard: item.standard,
             pre_col_key: key,
             pre_col_values: item.pre_col[key],
@@ -108,7 +109,6 @@ const InputPage: React.FC = () => {
       ),
     },
   ];
-
   const onRowClick = (record: any) => {
     setSelectedRow(record);
     setEditingRecord(record);
@@ -116,9 +116,18 @@ const InputPage: React.FC = () => {
   };
   const handleEdit = async (record: any) => {
     try {
-      const res = await axios.put(`/api/mapping/${record.objID}`, record);
-      toast.success("更新成功");
-      getMapping();
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      const res = await axios.post(`${baseUrl}/update_mapping`, {
+        pre_column: record.pre_col_key,
+        raw_column_list: record.pre_col_values,
+      });
+      if (res.data.status === "success") {
+        toast.success(res.data.message);
+        setIsModalVisible(false);
+        getMapping();
+      } else {
+        toast.error(res.data.message);
+      }
     } catch (error) {
       console.error("更新規則時出錯:", error);
     }
@@ -194,7 +203,6 @@ const InputPage: React.FC = () => {
             onSubmit={(e) => {
               e.preventDefault();
               handleEdit(editingRecord);
-              setIsModalVisible(false);
             }}
           >
             <div className="grid grid-cols-2 gap-4">

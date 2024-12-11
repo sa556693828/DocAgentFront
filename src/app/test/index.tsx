@@ -111,7 +111,7 @@ const InputPage: React.FC = () => {
     try {
       const response = await fetch(
         process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/docAgent/stream"
+          ? process.env.NEXT_PUBLIC_API_URL + "/docAgent/stream"
           : "http://localhost:9000/docAgent/stream",
         {
           method: "POST",

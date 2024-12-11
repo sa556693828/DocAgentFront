@@ -82,7 +82,7 @@ const RAGModal: React.FC<RAGModalProps> = ({ selectedRow }) => {
     try {
       const response = await axios.post(
         process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/upload"
+          ? process.env.NEXT_PUBLIC_API_URL + "/upload"
           : "http://localhost:9000/upload",
         formData,
         {
@@ -146,7 +146,7 @@ const RAGModal: React.FC<RAGModalProps> = ({ selectedRow }) => {
     try {
       const response = await axios.post(
         process.env.NODE_ENV === "production"
-          ? process.env.NEXT_PUBLIC_NGROK_URL + "/generate_article"
+          ? process.env.NEXT_PUBLIC_API_URL + "/generate_article"
           : "http://localhost:9000/generate_article",
         {
           book_id: selectedRow._id,
