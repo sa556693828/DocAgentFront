@@ -152,7 +152,7 @@ const UploadSection: React.FC = () => {
     try {
       const url = process.env.NEXT_PUBLIC_NGROK_URL + "/transformV2";
       const axiosInstance = axios.create({
-        timeout: 90000,
+        timeout: 600000,
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer valid_api_key",
