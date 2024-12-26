@@ -13,6 +13,12 @@ import Markdown from "react-markdown";
 
 const OutputPage: React.FC = () => {
   const [data, setData] = useState<BookData[]>([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [loading, setLoading] = useState(false);
   const [selectedRow, setSelectedRow] = useState<BookData | null>(null); // State for selected row
   const [isModalVisible, setIsModalVisible] = useState(false); // State for Modal visibility
   const [mode, setMode] = useState<"normal" | "RAG">("normal");
@@ -21,22 +27,49 @@ const OutputPage: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isFiltered, setIsFiltered] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (page: number = 1, pageSize: number = 10) => {
     try {
-      const response = await fetch("/api/books");
+      setLoading(true);
+      const response = await fetch(
+        `/api/books?page=${page}&pageSize=${pageSize}`
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch data");
       }
-      const data = (await response.json()) as BookData[];
-      data.reverse();
-      setData(data);
+      const result = await response.json();
+      setData(result.data);
+      setPagination({
+        current: page,
+        pageSize: pageSize,
+        total: result.pagination.total,
+      });
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast.error("獲取數據失敗");
+    } finally {
+      setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleTableChange: TableProps<BookData>["onChange"] = (
+    pagination,
+    filters,
+    sorter
+  ) => {
+    // 先滾動到頂部
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth", // 使用平滑滾動效果
+    });
+
+    // 然後獲取數據
+    fetchData(pagination.current, pagination.pageSize);
+  };
+
   const handleEdit = async (record: BookData) => {
     try {
       console.log(record);
@@ -311,14 +344,16 @@ const OutputPage: React.FC = () => {
         `}</style>
         <Table
           rowSelection={rowSelection}
-          pagination={{ pageSize: 10 }}
+          pagination={pagination}
+          onChange={handleTableChange}
           columns={columns}
           dataSource={filteredData}
           rowKey={(row) => row._id}
           scroll={{ x: "max-content" }}
-          sticky={true} // 添加 sticky 屬性
+          sticky={true}
+          loading={loading}
           onRow={(record) => ({
-            onClick: () => onRowClick(record), // On row click, show modal
+            onClick: () => onRowClick(record),
           })}
           className="whitespace-pre-wrap"
         />

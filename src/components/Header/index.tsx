@@ -6,7 +6,7 @@ export const Header: React.FC = () => {
     <header className="bg-white shadow-md border-b border-gray-300">
       <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold text-indigo-600">
-          DocAgent V3
+          DocAgent V4
         </Link>
         <nav>
           <ul className="flex space-x-6">

@@ -4,18 +4,38 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic"; // 禁用缓存
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+
     const client = await clientPromise;
     const db = client.db("Doc-Agent");
-    const books = await db
-      .collection("standard_docs")
+    const collection = db.collection("standard_docs");
+
+    // 獲取總文檔數
+    const total = await collection.countDocuments();
+
+    // 計算要跳過的文檔數
+    const skip = (page - 1) * pageSize;
+
+    const books = await collection
       .find({})
-      .sort({ metacritic: -1, _id: 1 }) // 添加 _id: 1 以確保排序有效
-      // .limit(10)
+      .sort({ metacritic: -1, _id: 1 })
+      .skip(skip)
+      .limit(pageSize)
       .toArray();
 
-    const response = NextResponse.json(books);
+    const response = NextResponse.json({
+      data: books,
+      pagination: {
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
 
     response.headers.set(
       "Cache-Control",
