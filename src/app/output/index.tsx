@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import NormalModal from "@/components/Modal/NormalModal";
 import RAGModal from "@/components/Modal/RAGModal";
 import Markdown from "react-markdown";
+import { useSelectionStore } from "@/store/selectionStore";
 
 const OutputPage: React.FC = () => {
   const [data, setData] = useState<BookData[]>([]);
@@ -24,10 +25,24 @@ const OutputPage: React.FC = () => {
   const [mode, setMode] = useState<"normal" | "RAG">("normal");
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BookData | null>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isFiltered, setIsFiltered] = useState(false);
+  const [dataCache, setDataCache] = useState<{ [key: number]: BookData[] }>({});
+
+  // 使用 Zustand store
+  const { selectedRowKeysState, setSelectedRowKeysState } = useSelectionStore();
 
   const fetchData = async (page: number = 1, pageSize: number = 10) => {
+    if (dataCache[page]) {
+      // 使用緩存數據時，也要更新分頁信息
+      setData(dataCache[page]);
+      setPagination((prev) => ({
+        ...prev,
+        current: page,
+        pageSize: pageSize,
+      }));
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await fetch(
@@ -43,6 +58,12 @@ const OutputPage: React.FC = () => {
         pageSize: pageSize,
         total: result.pagination.total,
       });
+
+      // 更新緩存
+      setDataCache((prevCache) => ({
+        ...prevCache,
+        [page]: result.data,
+      }));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("獲取數據失敗");
@@ -56,18 +77,17 @@ const OutputPage: React.FC = () => {
   }, []);
 
   const handleTableChange: TableProps<BookData>["onChange"] = (
-    pagination,
+    newPagination,
     filters,
     sorter
   ) => {
-    // 先滾動到頂部
     window.scrollTo({
       top: 0,
-      behavior: "smooth", // 使用平滑滾動效果
+      behavior: "smooth",
     });
 
-    // 然後獲取數據
-    fetchData(pagination.current, pagination.pageSize);
+    // 確保使用新的分頁參數
+    fetchData(newPagination.current, newPagination.pageSize);
   };
 
   const handleEdit = async (record: BookData) => {
@@ -100,12 +120,12 @@ const OutputPage: React.FC = () => {
   const handleBatchDelete = async () => {
     try {
       const response = await axios.delete("/api/books", {
-        data: { ids: selectedRowKeys },
+        data: { ids: selectedRowKeysState },
       });
 
       if (response.status === 200) {
         toast.success(`成功刪除了 ${response.data.deletedCount} 本書籍`); // 重新获取数据
-        setSelectedRowKeys([]); // 清空选择
+        setSelectedRowKeysState([]); // 清空选择
         fetchData();
       }
     } catch (error) {
@@ -209,9 +229,9 @@ const OutputPage: React.FC = () => {
   };
   const exportToCSV = () => {
     try {
-      // const headers = ["publisher_name", ...Object.keys(data[0]?.content || {})];
-      const selectedData = data.filter((item) =>
-        selectedRowKeys.includes(item._id)
+      const allData = Object.values(dataCache).flat();
+      const selectedData = allData.filter((item) =>
+        selectedRowKeysState.includes(item._id)
       );
 
       if (selectedData.length === 0) {
@@ -219,57 +239,73 @@ const OutputPage: React.FC = () => {
         return;
       }
 
-      const headers = [...Object.keys(selectedData[0]?.content || {})];
+      const missingData = selectedRowKeysState.length !== selectedData.length;
+      if (missingData) {
+        toast.error("部分選中的數據無法導出，請確保所有數據都已加載");
+        return;
+      }
+
+      toast.loading("正在生成CSV檔案...");
+
+      // 使用 keyArray 來確保欄位順序
+      const headers = keyArray;
       const rows = selectedData.map((item) =>
         headers.map((key) => {
-          let cellValue = item.content[key as keyof BookType] || "";
+          // 根據不同的鍵來獲取正確的值
+          const cellValue =
+            key === "supplier_name" || key === "publisher_name"
+              ? item[key] || ""
+              : item.content[key as keyof BookType] || "";
 
-          // 特殊處理"關鍵字詞"欄位
-          if (key === "關鍵字詞。各關鍵字之間，請以「,」為區隔符號。") {
-            console.log(cellValue);
-            // 將整個欄位內容用引號包裹，確保不會被分割
-            return `"${cellValue.replace(/"/g, '""')}"`;
-          }
-
-          // 處理其他包含逗號、引號或換行符的單元格
-          if (/[",\n\r]/.test(cellValue)) {
-            return `"${cellValue.replace(/"/g, '""')}"`;
-          }
-          return cellValue;
+          // 包含特殊字符的內容需要用引號包裹並處理引號轉義
+          return /[",\n\r]/.test(cellValue)
+            ? `"${cellValue.replace(/"/g, '""')}"`
+            : cellValue;
         })
       );
 
-      // 生成CSV內容
+      // 使用 outputKeyConfig 來獲取中文欄位名稱
+      const headerNames = headers.map(
+        (key) => outputKeyConfig[key]?.name || key
+      );
+
       const csvContent = [
-        headers.map((header) => `"${header.replace(/"/g, '""')}"`).join(","),
-      ]
-        .concat(rows.map((row) => row.join(",")))
-        .join("\n");
+        headerNames
+          .map((header) => `"${header.replace(/"/g, '""')}"`)
+          .join(","),
+        ...rows.map((row) => row.join(",")),
+      ].join("\n");
 
+      // 添加 BOM 標記以支持中文
       const BOM = "\uFEFF";
-      const csvContentWithBOM = BOM + csvContent;
-
-      // Create Blob and download link
-      const blob = new Blob([csvContentWithBOM], {
+      const blob = new Blob([BOM + csvContent], {
         type: "text/csv;charset=utf-8;",
       });
+
+      // 下載檔案
       const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", "標準格式檔案.csv");
-      link.style.visibility = "hidden";
+      link.href = URL.createObjectURL(blob);
+      link.download = `標準格式檔案_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast.dismiss();
+      toast.success("檔案導出成功！");
     } catch (error) {
       console.error("Error exporting CSV:", error);
+      toast.error("導出失敗");
     }
   };
   const rowSelection = {
-    selectedRowKeys,
+    selectedRowKeys: selectedRowKeysState,
     onChange: (newSelectedRowKeys: React.Key[]) => {
-      setSelectedRowKeys(newSelectedRowKeys);
+      setSelectedRowKeysState(newSelectedRowKeys);
     },
+    preserveSelectedRowKeys: true,
   };
   const filteredData = isFiltered
     ? data.filter(
@@ -285,10 +321,10 @@ const OutputPage: React.FC = () => {
       <div className="w-full mx-auto bg-white rounded-lg shadow-md gap-6  flex flex-col p-6">
         <div className="flex w-full justify-between items-center">
           <button
-            disabled={selectedRowKeys.length === 0}
+            disabled={selectedRowKeysState.length === 0}
             className={cn(
               "bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition-colors",
-              selectedRowKeys.length === 0
+              selectedRowKeysState.length === 0
                 ? "opacity-50 cursor-not-allowed"
                 : ""
             )}
@@ -307,23 +343,38 @@ const OutputPage: React.FC = () => {
               ? "顯示全部資料"
               : "顯示沒有供應商代碼或出版社代碼的資料"}
           </button>
-          {selectedRowKeys.length > 0 && (
-            <span className="font-bold text-xl">
-              已選擇 {selectedRowKeys.length} 項
-            </span>
-          )}
           <button
             className={cn(
               "bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors",
-              selectedRowKeys.length === 0
+              selectedRowKeysState.length === 0
                 ? "opacity-50 cursor-not-allowed"
                 : ""
             )}
-            disabled={selectedRowKeys.length === 0}
+            disabled={selectedRowKeysState.length === 0}
             onClick={handleBatchDelete}
           >
             刪除選擇項目
           </button>
+        </div>
+        <div className="flex justify-center w-full items-center">
+          {selectedRowKeysState.length > 0 && (
+            <div className=" flex gap-4 items-center">
+              <span className="font-semibold text-xl">
+                已在所有頁面中選擇 {selectedRowKeysState.length} 項
+              </span>
+              <button
+                className={cn(
+                  "bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors",
+                  selectedRowKeysState.length === 0
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                )}
+                onClick={() => setSelectedRowKeysState([])}
+              >
+                清除所有選擇
+              </button>
+            </div>
+          )}
         </div>
         {/* <h2 className="text-2xl font-bold ">已上傳表格</h2> */}
         <style jsx global>{`

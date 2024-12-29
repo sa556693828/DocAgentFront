@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const books = await collection
       .find({})
-      .sort({ metacritic: -1, _id: 1 })
+      .sort({ metacritic: "desc", _id: -1 })
       .skip(skip)
       .limit(pageSize)
       .toArray();
