@@ -124,9 +124,11 @@ const OutputPage: React.FC = () => {
       });
 
       if (response.status === 200) {
-        toast.success(`成功刪除了 ${response.data.deletedCount} 本書籍`); // 重新获取数据
-        setSelectedRowKeysState([]); // 清空选择
-        fetchData();
+        toast.success(`成功刪除了 ${response.data.deletedCount} 本書籍`);
+        setSelectedRowKeysState([]); // 清空選擇
+        // 清除緩存
+        setDataCache({});
+        fetchData(); // 重新獲取數據
       }
     } catch (error) {
       console.error("批量刪除書籍時出錯:", error);
