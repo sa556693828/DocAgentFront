@@ -119,22 +119,7 @@ const UploadSection: React.FC = () => {
         id: toastId,
       });
       if (ids.length > 0) {
-        const promises = ids.map((id: string, index: number) =>
-          callDocAgentAPI(id, fileUrls[index].name)
-        );
-        const results = await Promise.allSettled(promises);
-
-        // 處理結果
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
-            console.log(`文件 ${fileUrls[index].name} 轉換成功`);
-          } else {
-            console.error(
-              `文件 ${fileUrls[index].name} 轉換失敗:`,
-              result.reason
-            );
-          }
-        });
+        await processIdsSequentially(ids, fileUrls);
       }
     } catch (error) {
       console.error("上傳文件時出錯:", error);
@@ -186,6 +171,37 @@ const UploadSection: React.FC = () => {
   const handleReupload = () => {
     setFiles([]);
     setFileStatus({});
+  };
+
+  const processIdsSequentially = async (
+    ids: string[],
+    fileUrls: { name: string; url: string }[]
+  ) => {
+    for (let i = 0; i < ids.length; i++) {
+      const startTime = Date.now();
+
+      try {
+        await callDocAgentAPI(ids[i], fileUrls[i].name);
+        const processingTime = Date.now() - startTime;
+        console.log(
+          `文件 ${fileUrls[i].name} 處理時間: ${processingTime / 1000} 秒`
+        );
+
+        // 如果還有下一個文件，等待直到滿一分鐘
+        if (i < ids.length - 1) {
+          const waitTime = Math.max(60000 - processingTime, 0);
+          setFileStatus((prev) => ({
+            ...prev,
+            [fileUrls[i + 1].name]: `等待處理中 (${Math.ceil(
+              waitTime / 1000
+            )}秒)`,
+          }));
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+      } catch (error) {
+        console.error(`文件 ${fileUrls[i].name} 處理失敗:`, error);
+      }
+    }
   };
 
   return (
