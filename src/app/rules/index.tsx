@@ -17,6 +17,9 @@ const RulesPage: React.FC = () => {
   const [newRule, setNewRule] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const testUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_URL;
+  const productionUrl = process.env.NEXT_PUBLIC_PRODUCTION_URL;
+
   const getRules = async () => {
     try {
       const response = await axios.get("/api/rules");
@@ -44,9 +47,10 @@ const RulesPage: React.FC = () => {
     setNewRule("");
     const toastId = toast.loading(`正在更新規則： ${newRule}`);
     try {
-      const url = process.env.NEXT_PUBLIC_API_URL + "/update_rules";
+      const url =
+        process.env.NODE_ENV === "development" ? testUrl : productionUrl;
       const result = await axios.post(
-        url,
+        `${url}/update_rules`,
         {
           new_rule: newRule,
         },

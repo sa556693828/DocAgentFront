@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import { usePathname } from "next/navigation";
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
@@ -11,6 +12,7 @@ interface FileWithPreview extends File {
 }
 
 const UploadSection: React.FC = () => {
+  const pathname = usePathname();
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
@@ -18,6 +20,8 @@ const UploadSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"documents" | "spreadsheets">(
     "documents"
   );
+  const testUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_URL;
+  const productionUrl = process.env.NEXT_PUBLIC_PRODUCTION_URL;
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(
@@ -135,7 +139,10 @@ const UploadSection: React.FC = () => {
     setAgentLoading(true);
     const toastId = toast.loading(`正在轉換 ${fileName}`);
     try {
-      const url = process.env.NEXT_PUBLIC_API_URL + "/transformV2";
+      const url =
+        pathname === "/testing"
+          ? testUrl + "/transformV2"
+          : productionUrl + "/transformV2";
       const axiosInstance = axios.create({
         timeout: 600000,
         headers: {

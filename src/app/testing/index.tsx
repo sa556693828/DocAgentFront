@@ -28,8 +28,7 @@ const InputPage: React.FC = () => {
 
   const getMapping = async () => {
     try {
-      const baseUrl =
-        process.env.NODE_ENV === "development" ? testUrl : productionUrl;
+      const baseUrl = testUrl;
       const response = await axios.get(`${baseUrl}/get_mapping`);
       const data = response.data.data;
       const filterData = data.filter(
@@ -120,8 +119,7 @@ const InputPage: React.FC = () => {
   };
   const handleEdit = async (record: any) => {
     try {
-      const baseUrl =
-        process.env.NODE_ENV === "development" ? testUrl : productionUrl;
+      const baseUrl = testUrl;
       const res = await axios.post(`${baseUrl}/update_mapping`, {
         pre_column: record.pre_col_key,
         raw_column_list: record.pre_col_values,
@@ -143,6 +141,7 @@ const InputPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center w-full flex-col p-4">
+      testing
       <Collapse header="1. 確認上傳文檔格式" isTrain={true}>
         <div className="space-y-4">
           <div>
