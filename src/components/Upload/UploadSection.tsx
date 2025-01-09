@@ -123,7 +123,22 @@ const UploadSection: React.FC = () => {
         id: toastId,
       });
       if (ids.length > 0) {
-        await processIdsSequentially(ids, fileUrls);
+        const promises = ids.map((id: string, index: number) =>
+          callDocAgentAPI(id, fileUrls[index].name)
+        );
+        const results = await Promise.allSettled(promises);
+        // 處理結果
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") {
+            console.log(`文件 ${fileUrls[index].name} 轉換成功`);
+          } else {
+            console.error(
+              `文件 ${fileUrls[index].name} 轉換失敗:`,
+              result.reason
+            );
+          }
+        });
+        // await processIdsSequentially(ids, fileUrls);
       }
     } catch (error) {
       console.error("上傳文件時出錯:", error);
