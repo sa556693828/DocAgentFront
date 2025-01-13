@@ -44,7 +44,7 @@ export interface BookType {
   海外商品原定價: string;
   商品銷售稅別: string;
   商品長度: string;
-  商品寛度: string;
+  商品寬度: string;
   商品高度: string;
   商品重量: string;
   "特別收錄／編輯的話": string;
