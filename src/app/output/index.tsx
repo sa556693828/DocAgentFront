@@ -224,7 +224,7 @@ const OutputPage: React.FC = () => {
   ];
   const onRowClick = (record: BookData) => {
     setSelectedRow(record);
-    setIsModalVisible(true);
+    // setIsModalVisible(true);
   };
   const handleModalClose = () => {
     setIsModalVisible(false);
