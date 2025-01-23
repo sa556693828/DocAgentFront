@@ -69,7 +69,7 @@ export interface BookType {
   系列代碼: string;
   廠商店內碼: string;
   紙張開數: string;
-  "關鍵字詞。各關鍵字之間，請以「,」為區隔符號。": string;
+  "關鍵字詞。關鍵字間以「,」為分隔符號。": string;
   商品截退日期: string;
   銷售通路限制: string;
   首批進倉日期: string;
