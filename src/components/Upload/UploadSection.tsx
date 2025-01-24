@@ -142,9 +142,9 @@ const UploadSection: React.FC = () => {
       }
     } catch (error) {
       console.error("上傳文件時出錯:", error);
-      toast.error("上傳失敗", {
-        id: toastId,
-      });
+      // toast.error("上傳失敗", {
+      //   id: toastId,
+      // });
     } finally {
       setLoading(false);
     }
@@ -179,12 +179,32 @@ const UploadSection: React.FC = () => {
       setFileStatus((prev) => ({ ...prev, [fileName]: "轉換完成" }));
       return res.data;
     } catch (error: any) {
-      setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
-      console.error("調用DocAgent API時出錯:", error.response.data.error);
-      toast.error(`轉換 ${fileName} 過長或失敗: ${error.response.data.error}`, {
-        id: toastId,
-      });
-      toast.dismiss(toastId);
+      // 處理超時錯誤
+      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+        setFileStatus((prev) => ({ ...prev, [fileName]: "轉換超時" }));
+        console.error("轉換超時:", error);
+        toast.error(`轉換 ${fileName} 超時，請稍後重試`, {
+          id: toastId,
+          duration: 10000,
+        });
+      } else {
+        // 處理其他錯誤
+        setFileStatus((prev) => ({ ...prev, [fileName]: "轉換失敗" }));
+        console.error(
+          "調用DocAgent API時出錯:",
+          error.response?.data?.error || error.message
+        );
+        toast.error(
+          `轉換 ${fileName} 失敗: ${
+            error.response?.data?.error || error.message
+          }`,
+          {
+            id: toastId,
+            duration: 10000,
+          }
+        );
+      }
+      // toast.dismiss(toastId);
       throw error;
     } finally {
       setAgentLoading(false);
