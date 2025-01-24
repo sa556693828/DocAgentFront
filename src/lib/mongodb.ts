@@ -5,7 +5,7 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = { appName: "DocAgent" };
+const options = { appName: "doc-agent" };
 
 let client: MongoClient;
 

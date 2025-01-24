@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const data = await request.json();
 
     const { files } = data;

@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const { id } = params;
     const books = await db.collection("standard_docs").find({
       _id: new ObjectId(id),
@@ -44,7 +44,7 @@ export async function PUT(
     const { publisher_name, content } = await request.json();
 
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const collection = db.collection("standard_docs");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },

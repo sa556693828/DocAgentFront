@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
 
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const collection = db.collection("standard_docs");
 
     // 獲取總文檔數
@@ -62,7 +62,7 @@ export async function PUT(
     const { id } = params;
     const { publisher_name, content } = await request.json();
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const collection = db.collection("standard_docs");
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("Doc-Agent");
+    const db = client.db("doc-agent");
     const collection = db.collection("standard_docs");
 
     const objectIds = ids.map((id) => new ObjectId(id));
