@@ -14,6 +14,7 @@ export default function UploadBook() {
   const [loading, setLoading] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
   const [fileStatus, setFileStatus] = useState<{ [key: string]: string }>({});
+  const [bookId, setBookId] = useState<string>("");
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(
@@ -28,7 +29,7 @@ export default function UploadBook() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: true,
-    maxFiles: 2,
+    maxFiles: 1,
     accept: {
       "application/pdf": [".pdf"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -62,6 +63,10 @@ export default function UploadBook() {
     }
   };
   const handleUpload = async () => {
+    if (!bookId) {
+      toast.error("請輸入書籍ID");
+      return;
+    }
     setLoading(true);
     const toastId = toast.loading(`正在上傳`);
     try {
@@ -137,6 +142,7 @@ export default function UploadBook() {
 
       const res = await axiosInstance.post(url, {
         file_id: fileId,
+        org_prod_id: bookId,
       });
       if (res.data.error) {
         throw new Error(res.data.error);
@@ -207,15 +213,15 @@ export default function UploadBook() {
                 </svg>
               </div>
             </div>
-            <p className="text-gray-600 mb-2">上傳資料 並可批量上傳</p>
-            <p className="text-gray-400 text-sm">最多2筆</p>
+            <p className="text-gray-600 mb-2">上傳資料 不可批量上傳</p>
+            <p className="text-gray-400 text-sm">最多1筆</p>
           </div>
         ) : (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-center mb-4">
               你已經上傳 {files.length} 筆資料
             </h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {files.map((file, index) => (
                 <div key={file.name} className="flex items-center space-x-2">
                   <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm uppercase">
@@ -227,6 +233,13 @@ export default function UploadBook() {
                   <span className="text-sm text-gray-500">
                     {fileStatus[file.name] || "等待上傳"}
                   </span>
+                  <input
+                    type="text"
+                    value={bookId}
+                    placeholder="請輸入書籍ID"
+                    onChange={(e) => setBookId(e.target.value)}
+                    className="border-2 border-gray-300 rounded-md p-2"
+                  />
                 </div>
               ))}
             </div>
